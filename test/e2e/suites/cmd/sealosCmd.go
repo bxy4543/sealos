@@ -4,12 +4,12 @@ import "strings"
 
 type SealosCmd struct {
 	BinPath  string
-	Executor Interface
+	Executor CmdInterface
 	ImageService
 	ClusterCycle
 }
 
-func NewSealosCmd(binPath string, executor Interface) *SealosCmd {
+func NewSealosCmd(binPath string, executor CmdInterface) *SealosCmd {
 	return &SealosCmd{
 		BinPath:  binPath,
 		Executor: executor,

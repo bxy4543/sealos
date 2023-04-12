@@ -5,11 +5,11 @@ import (
 	"github.com/labring/sealos/controllers/infra/common"
 )
 
-func GetPublicIP(hosts []v1.Hosts) []string {
+func GetPublicIp(hosts []v1.Hosts) []string {
 	return getIPSByType(hosts, common.IPTypePublic)
 }
 
-func GetPrivateIP(hosts []v1.Hosts) []string {
+func GetPrivateIp(hosts []v1.Hosts) []string {
 	return getIPSByType(hosts, common.IPTypePrivate)
 }
 
