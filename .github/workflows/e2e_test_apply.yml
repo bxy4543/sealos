@@ -3,12 +3,12 @@ name: E2E Apply Test
 on:
   workflow_dispatch:
   pull_request_target:
-    types: [ opened, synchronize, reopened, labeled ]
+    types: [ labeled ]
 
 jobs:
   call_ci_workflow:
     uses: ./.github/workflows/import-patch-image.yml
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
+    if: ${{ github.event.action == 'labeled' && github.event.label.name == 'need-e2e-apply-test' }}
     with:
       arch: amd64,arm64
       e2e: true
