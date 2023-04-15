@@ -44,6 +44,7 @@ jobs:
           action_link=`echo "https://github.com/${REPOSITORY_NAME}/actions/runs/${RUN_ID}"`
           echo $action_link
           echo "action_link=${action_link}" >> "$GITHUB_OUTPUT"
+          exit 1
   
 
   #      - name: Add comment to PR with test status
@@ -67,8 +68,8 @@ jobs:
 
   issue_commit:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
-    needs:
-      - e2e_apply_test
+#    needs:
+#      - e2e_apply_test
     runs-on: ubuntu-latest
     permissions:
       issues: write
@@ -77,12 +78,11 @@ jobs:
     steps:
       - name: Add comment to PR with test status
         uses: peter-evans/create-or-update-comment@v1
-        if: ${{ success() }}
+        if: ${{ always() }}
         with:
           issue-number: ${{ needs.e2e_apply_test.outputs.issue_number }}
           comment-author: 'github-actions[bot]'
           repository: ${{ github.repository }}
           body: |
-            ${{ github.workflow }}: Success 
-            [Action link](${{ needs.e2e_apply_test.outputs.action_link }})
+            AUTO COMMIT: ${{ github.workflow }}: ${{ needs.e2e_apply_test.conclusion == 'failure' && 'Failure' || 'Success' }} [Action link](${{ needs.e2e_apply_test.outputs.action_link }})
           token: "${{ secrets.GH_PAT }}"
