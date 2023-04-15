@@ -78,9 +78,9 @@ jobs:
       - name: Add comment to PR with test status
         uses: peter-evans/create-or-update-comment@v1
         if: ${{ success() }}
-        comment-author: 'github-actions[bot]'
         with:
           issue-number: ${{ needs.e2e_apply_test.outputs.issue_number }}
+          comment-author: 'github-actions[bot]'
           repository: ${{ github.repository }}
           body: |
             ${{ github.workflow }}: Success 
