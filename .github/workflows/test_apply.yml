@@ -78,13 +78,11 @@ jobs:
       - name: Add comment to PR with test status
         uses: peter-evans/create-or-update-comment@v1
         if: ${{ success() }}
-        env:
-          action_link: ${{ needs.e2e_apply_test.outputs.action_link }}
-          job_name: ${{ github.job }}
+        comment-author: 'github-actions[bot]'
         with:
           issue-number: ${{ needs.e2e_apply_test.outputs.issue_number }}
           repository: ${{ github.repository }}
           body: |
-            ${job_name}: Success 
-            [Action link](${action_link})
+            ${{ github.workflow }}: Success 
+            [Action link](${{ needs.e2e_apply_test.outputs.action_link }})
           token: "${{ secrets.GH_PAT }}"
