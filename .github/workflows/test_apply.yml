@@ -13,20 +13,28 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
     permissions:
       issues: write
-
+    outputs:
+      action_link: ${{ steps.get_action_link.outputs.action_link }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Set environment variables
+        run: |
+          echo "REPOSITORY_OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
+          echo "REPOSITORY_NAME=${{ github.repository }}" >> $GITHUB_ENV
+          echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
+
       - name: Run tests
         id: get_action_link
-        outputs:
-          action_link: ${{ steps.get_action_link.outputs.action_link }}
         run: |
           ls -al
           echo "result=success"
-          echo "result=success" > result.txt
-          action_link=`echo "https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}"`
+          sudo touch result.txt && sudo chmod 0666 result.txt
+          sudo echo "result=success" > result.txt
+          echo "${{ github }}"
+          echo -e "\n\n\n\n\n $github \n\n\n\n\n"
+          action_link=`echo "https://github.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/actions/runs/${RUN_ID}"`
           echo $action_link
           echo "action_link==${action_link}" >> "$GITHUB_OUTPUT"
 
@@ -70,7 +78,7 @@ jobs:
         uses: peter-evans/create-or-update-comment@v1
         if: ${{ success() }}
         env:
-          action_link: ${{issue_commit.outputs.action_link}}
+          action_link: ${{needs.e2e_apply_test.outputs.action_link}}
         with:
           issue-number: 140
           repository: labring-actions/cluster-image
