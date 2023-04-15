@@ -21,31 +21,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Set environment variables
-        id: get_issue_number
-        run: |
-          echo "REPOSITORY_NAME=${{ github.repository }}" >> $GITHUB_ENV
-          echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
-          echo "issue_number=${{ github.event.number }}" >> "$GITHUB_OUTPUT"
-
       - name: Run tests
         id: get_action_link
         env:
           github: ${{ toJson(github) }}
         run: |
-          ls -al
-          echo "result=success"
-          sudo touch result.txt && sudo chmod 0666 result.txt
           sudo echo "result=success" > result.txt
-          echo "${{ github }}"
           echo -e "\n\n\n\n\n $github \n\n\n\n\n"
-          
-          echo $REPOSITORY_NAME
-          action_link=`echo "https://github.com/${REPOSITORY_NAME}/actions/runs/${RUN_ID}"`
-          echo $action_link
-          echo "action_link=${action_link}" >> "$GITHUB_OUTPUT"
-      - name: add exit 1
-        run: exit 1
+        
   
 
   #      - name: Add comment to PR with test status
