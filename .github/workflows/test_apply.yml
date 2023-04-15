@@ -80,9 +80,11 @@ jobs:
         if: ${{ success() }}
         env:
           action_link: ${{ needs.e2e_apply_test.outputs.action_link }}
+          job_name: ${{ github.job }}
         with:
           issue-number: ${{ needs.e2e_apply_test.outputs.issue_number }}
-          repository: labring-actions/cluster-image
+          repository: ${{ github.repository }}
           body: |
-            'E2E Apply Test: Success' \n[Action link](${action_link})
+            ${job_name}: Success 
+            [Action link](${action_link})
           token: "${{ secrets.GH_PAT }}"
