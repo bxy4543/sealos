@@ -13,17 +13,20 @@ jobs:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
     permissions:
       issues: write
+      pull-requests: write
     outputs:
       action_link: ${{ steps.get_action_link.outputs.action_link }}
+      issue_number: ${{ steps.get_issue_number.outputs.issue_number }}
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Set environment variables
+        id: get_issue_number
         run: |
-          echo "REPOSITORY_OWNER=${{ github.repository_owner }}" >> $GITHUB_ENV
           echo "REPOSITORY_NAME=${{ github.repository }}" >> $GITHUB_ENV
           echo "RUN_ID=${{ github.run_id }}" >> $GITHUB_ENV
+          echo "issue_number=${{ github.event.number }}" >> "$GITHUB_OUTPUT"
 
       - name: Run tests
         id: get_action_link
@@ -37,31 +40,30 @@ jobs:
           echo "${{ github }}"
           echo -e "\n\n\n\n\n $github \n\n\n\n\n"
           
-          echo $REPOSITORY_OWNER
           echo $REPOSITORY_NAME
-          action_link=`echo "https://github.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/actions/runs/${RUN_ID}"`
+          action_link=`echo "https://github.com/${REPOSITORY_NAME}/actions/runs/${RUN_ID}"`
           echo $action_link
-          echo "action_link==${action_link}" >> "$GITHUB_OUTPUT"
+          echo "action_link=${action_link}" >> "$GITHUB_OUTPUT"
+  
 
-
-#      - name: Add comment to PR with test status
-#        if: ${{ always() }} # Ensure this step runs even if previous steps failed
-#        uses: actions/github-script@v6
-#        with:
-#          github-token: ${{ secrets.GITHUB_TOKEN }}
-#          script: |
-#            const issue_number = context.issue.number;
-#            const fs = require('fs');
-#            const test_result = fs.readFileSync('result.txt', 'utf-8');
-#            const success = test_result.trim() === 'success';
-#            const comment_body = success ? 'E2E Apply Test: Success' : 'E2E Apply Test: Failed';
-#            const action_link = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-#
-#            await github.rest.issues.createComment({
-#              ...context.repo,
-#              issue_number,
-#              body: `${comment_body}\n[Action link](${action_link})`
-#            });
+  #      - name: Add comment to PR with test status
+  #        if: ${{ always() }} # Ensure this step runs even if previous steps failed
+  #        uses: actions/github-script@v6
+  #        with:
+  #          github-token: ${{ secrets.GITHUB_TOKEN }}
+  #          script: |
+  #            const issue_number = context.issue.number;
+  #            const fs = require('fs');
+  #            const test_result = fs.readFileSync('result.txt', 'utf-8');
+  #            const success = test_result.trim() === 'success';
+  #            const comment_body = success ? 'E2E Apply Test: Success' : 'E2E Apply Test: Failed';
+  #            const action_link = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+  #
+  #            await github.rest.issues.createComment({
+  #              ...context.repo,
+  #              issue_number,
+  #              body: `${comment_body}\n[Action link](${action_link})`
+  #            });
 
   issue_commit:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
@@ -73,19 +75,13 @@ jobs:
     outputs:
       action_link: ${{ steps.get_action_link.outputs.action_link }}
     steps:
-      - name: get action link
-        id: get_action_link
-        run: |
-          action_link=`echo "https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}"`
-          echo "action_link==${action_link}" >> "$GITHUB_OUTPUT"
-
       - name: Add comment to PR with test status
         uses: peter-evans/create-or-update-comment@v1
         if: ${{ success() }}
         env:
-          action_link: ${{needs.e2e_apply_test.outputs.action_link}}
+          action_link: ${{ needs.e2e_apply_test.outputs.action_link }}
         with:
-          issue-number: 140
+          issue-number: ${{ needs.e2e_apply_test.outputs.issue_number }}
           repository: labring-actions/cluster-image
           body: |
             'E2E Apply Test: Success' \n[Action link](${action_link})
