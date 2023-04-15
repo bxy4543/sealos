@@ -20,7 +20,7 @@ jobs:
         id: wait-for-check
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          checkName: "patch-oci" # Replace with the name of the job in your comment triggered workflow
+          checkName: "docker" # Replace with the name of the job in your comment triggered workflow
           ref: ${{ github.event.pull_request.head.sha }}
           waitFor: '100000000' # milliseconds between check for completion
           timeout: '18000000000' # milliseconds to wait before timing out
