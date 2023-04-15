@@ -27,6 +27,8 @@ jobs:
 
       - name: Run tests
         id: get_action_link
+        env:
+          github: ${{ toJson(github) }}
         run: |
           ls -al
           echo "result=success"
@@ -34,29 +36,32 @@ jobs:
           sudo echo "result=success" > result.txt
           echo "${{ github }}"
           echo -e "\n\n\n\n\n $github \n\n\n\n\n"
+          
+          echo $REPOSITORY_OWNER
+          echo $REPOSITORY_NAME
           action_link=`echo "https://github.com/${REPOSITORY_OWNER}/${REPOSITORY_NAME}/actions/runs/${RUN_ID}"`
           echo $action_link
           echo "action_link==${action_link}" >> "$GITHUB_OUTPUT"
 
 
-      - name: Add comment to PR with test status
-        if: ${{ always() }} # Ensure this step runs even if previous steps failed
-        uses: actions/github-script@v6
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const issue_number = context.issue.number;
-            const fs = require('fs');
-            const test_result = fs.readFileSync('result.txt', 'utf-8');
-            const success = test_result.trim() === 'success';
-            const comment_body = success ? 'E2E Apply Test: Success' : 'E2E Apply Test: Failed';
-            const action_link = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
-            
-            await github.rest.issues.createComment({
-              ...context.repo,
-              issue_number,
-              body: `${comment_body}\n[Action link](${action_link})`
-            });
+#      - name: Add comment to PR with test status
+#        if: ${{ always() }} # Ensure this step runs even if previous steps failed
+#        uses: actions/github-script@v6
+#        with:
+#          github-token: ${{ secrets.GITHUB_TOKEN }}
+#          script: |
+#            const issue_number = context.issue.number;
+#            const fs = require('fs');
+#            const test_result = fs.readFileSync('result.txt', 'utf-8');
+#            const success = test_result.trim() === 'success';
+#            const comment_body = success ? 'E2E Apply Test: Success' : 'E2E Apply Test: Failed';
+#            const action_link = `https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+#
+#            await github.rest.issues.createComment({
+#              ...context.repo,
+#              issue_number,
+#              body: `${comment_body}\n[Action link](${action_link})`
+#            });
 
   issue_commit:
     if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
