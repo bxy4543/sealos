@@ -359,6 +359,7 @@ jobs:
         shell: bash
         run: |
           set -ex
+          echo "job name: ${{ github.job }}"
           gzip /tmp/sealos/images/patch-${{ matrix.arch }}.tar
           ls -Rl /tmp/sealos
           wget -qO goNew.tgz https://go.dev/dl/go1.20.linux-amd64.tar.gz && tar -zxf goNew.tgz && rm -rf goNew.tgz
@@ -368,15 +369,15 @@ jobs:
           echo "SEALOS_E2E_TEST_IMAGE_NAME=hub.sealos.cn/labring/kubernetes:v1.25.6"
           echo "SEALOS_E2E_TEST_PATCH_IMAGE_TAR=/tmp/sealos/images/patch-${{ matrix.arch }}.tar.gz"
           echo "SEALOS_E2E_TEST_PATCH_IMAGE_NAME=ghcr.io/labring/sealos-merge-patch:${{ env.GIT_COMMIT_SHORT_SHA }}-${{ matrix.arch }}"
-          echo "SEALOS_E2E_TEST_SEALOS_BIN_PATH=/tmp/sealos/bin/sealos-${{ matrix.arch }}/sealos"
+          echo "SEALOS_E2E_TEST_SEALOS_BIN_PATH=/tmp/sealos/bin/sealos"
           echo "ALIYUN_ACCESS_KEY_ID=${{ secrets.ALIYUN_ACCESS_KEY_ID }}"
           echo "ALIYUN_ACCESS_KEY_SECRET=${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
           echo "ALIYUN_RESOURCE_GROUP_ID=${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}"
           echo "ALIYUN_REGION_ID=cn-hangzhou"
           sudo SEALOS_E2E_TEST_IMAGE_NAME="hub.sealos.cn/labring/kubernetes:v1.25.6" \
-            SEALOS_E2E_TEST_PATCH_IMAGE_TAR="/tmp/sealos/images/patch-image-${{ matrix.arch }}.tar.gz" \
+            SEALOS_E2E_TEST_PATCH_IMAGE_TAR="/tmp/sealos/images/patch-${{ matrix.arch }}.tar.gz" \
             SEALOS_E2E_TEST_PATCH_IMAGE_NAME="ghcr.io/labring/sealos-merge-patch:${{ env.GIT_COMMIT_SHORT_SHA }}-${{ matrix.arch }}" \
-            SEALOS_E2E_TEST_SEALOS_BIN_PATH="/tmp/sealos/bin/sealos-${{ matrix.arch }}" \
+            SEALOS_E2E_TEST_SEALOS_BIN_PATH="/tmp/sealos/bin/sealos" \
             ALIYUN_ACCESS_KEY_ID="${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
             ALIYUN_ACCESS_KEY_SECRET="${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}" \
             ALIYUN_RESOURCE_GROUP_ID="${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}" \
@@ -391,6 +392,8 @@ jobs:
     permissions:
       issues: write
     steps:
+      - name: sleep for wait apply test to complete
+        run: sleep 10m
       ## why not use `needs.e2e_apply_test` ? because when e2e_apply_test failed, the `needs.e2e_apply_test` will cause skip this commit steps.
       - name: Wait for comment triggered workflow to complete
         if: ${{ always() }}
