@@ -15,10 +15,14 @@ jobs:
   e2e_apply_test:
     needs: [ call_ci_workflow ]
     runs-on: ubuntu-latest
+    permissions:
+      issues: write
     if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
     strategy:
       matrix:
         arch: [ arm64, amd64 ]
+    outputs:
+      test_result: ${{ steps.apply_test.outputs.test_result }}
     steps:
       - name: Run tests
         id: get_action_link
@@ -49,6 +53,7 @@ jobs:
           path: /tmp/sealos/images/
 
       - name: Install ginkgo && Run e2e apply test
+        id: apply_test
         shell: bash
         run: |
           set -ex
@@ -67,49 +72,60 @@ jobs:
           echo "ALIYUN_ACCESS_KEY_SECRET=${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
           echo "ALIYUN_RESOURCE_GROUP_ID=${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}"
           echo "ALIYUN_REGION_ID=cn-hangzhou"
-  #          sudo SEALOS_E2E_TEST_IMAGE_NAME="hub.sealos.cn/labring/kubernetes:v1.25.6" \
-  #            SEALOS_E2E_TEST_PATCH_IMAGE_TAR="/tmp/sealos/images/patch-${{ matrix.arch }}.tar.gz" \
-  #            SEALOS_E2E_TEST_PATCH_IMAGE_NAME="ghcr.io/labring/sealos-merge-patch:${{ env.GIT_COMMIT_SHORT_SHA }}-${{ matrix.arch }}" \
-  #            SEALOS_E2E_TEST_SEALOS_BIN_PATH="/tmp/sealos/bin/sealos" \
-  #            ALIYUN_ACCESS_KEY_ID="${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
-  #            ALIYUN_ACCESS_KEY_SECRET="${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}" \
-  #            ALIYUN_RESOURCE_GROUP_ID="${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}" \
-  #            ALIYUN_REGION_ID=cn-hangzhou /tmp/golang/go/bin/go run github.com/onsi/ginkgo/v2/ginkgo -v --focus="apply test" test/e2e/
+          set +e
+          sudo SEALOS_E2E_TEST_IMAGE_NAME="hub.sealos.cn/labring/kubernetes:v1.25.6" \
+            SEALOS_E2E_TEST_PATCH_IMAGE_TAR="/tmp/sealos/images/patch-${{ matrix.arch }}.tar.gz" \
+            SEALOS_E2E_TEST_PATCH_IMAGE_NAME="ghcr.io/labring/sealos-merge-patch:${{ env.GIT_COMMIT_SHORT_SHA }}-${{ matrix.arch }}" \
+            SEALOS_E2E_TEST_SEALOS_BIN_PATH="/tmp/sealos/bin/sealos" \
+            ALIYUN_ACCESS_KEY_ID="${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
+            ALIYUN_ACCESS_KEY_SECRET="${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}" \
+            ALIYUN_RESOURCE_GROUP_ID="${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}" \
+            ALIYUN_REGION_ID=cn-hangzhou /tmp/golang/go/bin/go run github.com/onsi/ginkgo/v2/ginkgo -v --focus="apply test" test/e2e/
+          if [ $? -eq 0 ]; then
+              echo "test_result=success" >> "$GITHUB_OUTPUT"
+          else
+              echo "test_result=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Add comment to PR with test status
+        uses: peter-evans/create-or-update-comment@v1
+        if: ${{ always() }}
+        id: check-result
+        env:
+          result: ${{needs.e2e_apply_test.outputs.test_result}}
+        with:
+          issue-number: ${{ github.event.number }}
+          comment-author: 'github-actions[bot]'
+          repository: ${{ github.repository }}
+          body: |
+            AUTO COMMIT: E2E Apply Test Result: ${{ needs.e2e_apply_test.outputs.test_result }} [View Action Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          token: "${{ secrets.GH_PAT }}"
+
 
 #  issue_commit:
-#    needs: [ docker ]
+#    needs: [ e2e_apply_test ]
 #    if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
 #    #    needs:
 #    #      - e2e_apply_test
 #    runs-on: ubuntu-latest
 #    permissions:
 #      issues: write
-#    steps:
-#      - name: sleep for wait apply test to complete
-#        run: sleep 5m
-#      ## why not use `needs.e2e_apply_test` ? because when e2e_apply_test failed, the `needs.e2e_apply_test` will cause skip this commit steps.
-#      - name: Wait for comment triggered workflow to complete
-#        if: ${{ always() }}
-#        uses: fountainhead/action-wait-for-check@v1.0.0
-#        id: wait-for-check
-#        with:
-#          token: ${{ secrets.GITHUB_TOKEN }}
-#          checkName: "e2e_apply_test" # Replace with the name of the job in your comment triggered workflow
-#          ref: ${{ github.event.pull_request.head.sha }}
-#          waitFor: '100000000' # milliseconds between check for completion
-#          timeout: '18000000000' # milliseconds to wait before timing out
 #
+#    steps:
 #      - name: Add comment to PR with test status
 #        uses: peter-evans/create-or-update-comment@v1
 #        if: ${{ always() }}
+#        id: check-result
+#        env:
+#          result: ${{needs.e2e_apply_test.outputs.test_result}}
 #        with:
 #          issue-number: ${{ github.event.number }}
 #          comment-author: 'github-actions[bot]'
 #          repository: ${{ github.repository }}
 #          body: |
-#            AUTO COMMIT: E2E Apply Test Result: ${{ needs.e2e_apply_test.conclusion == 'failure' && 'Failure' || 'Success' }} [View Action Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+#            AUTO COMMIT: E2E Apply Test Result: ${{needs.e2e_apply_test.outputs.test_result}} [View Action Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
 #          token: "${{ secrets.GH_PAT }}"
-
+#
 
 #  e2e_apply_test:
 #    runs-on: ubuntu-latest

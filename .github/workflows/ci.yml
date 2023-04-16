@@ -25,10 +25,10 @@ on:
       - "webhooks/**"
       - "frontend/**"
   pull_request:
-    types:
-      - opened
-      - synchronize
-      - labeled
+#    types:
+#      - opened
+#      - synchronize
+      #- labeled
     branches: [ "*" ]
     paths-ignore:
       - "docs/**"
@@ -333,38 +333,38 @@ jobs:
           sudo $binDIR/buildah manifest push --all "$IMAGE_NAME" docker://"$IMAGE_NAME" && echo "$IMAGE_NAME push success"
           sudo $binDIR/buildah images
 
-  e2e_apply_test:
-    needs: [ docker ]
-    runs-on: ubuntu-latest
-    if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
-    strategy:
-      matrix:
-        arch: [ arm64, amd64 ]
-    steps:
-      - name: Install Dependencies
-        run: sudo apt update && sudo apt install -y libgpgme-dev libbtrfs-dev libdevmapper-dev
-
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Expose git commit data
-        uses: rlespinasse/git-commit-data-action@v1
-
-      - name: Download sealos binary
-        uses: actions/download-artifact@v3
-        with:
-          name: sealos-${{ matrix.arch }}
-          path: /tmp/sealos/bin/
-
-      - name: Download sealos patch image
-        uses: actions/download-artifact@v3
-        with:
-          name: patch-image-${{ matrix.arch }}.tar
-          path: /tmp/sealos/images/
-
-      - name: Install ginkgo && Run e2e apply test
-        shell: bash
-        run: |
+#  e2e_apply_test:
+#    needs: [ docker ]
+#    runs-on: ubuntu-latest
+#    if: ${{ contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }}
+#    strategy:
+#      matrix:
+#        arch: [ arm64, amd64 ]
+#    steps:
+#      - name: Install Dependencies
+#        run: sudo apt update && sudo apt install -y libgpgme-dev libbtrfs-dev libdevmapper-dev
+#
+#      - name: Checkout code
+#        uses: actions/checkout@v3
+#
+#      - name: Expose git commit data
+#        uses: rlespinasse/git-commit-data-action@v1
+#
+#      - name: Download sealos binary
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: sealos-${{ matrix.arch }}
+#          path: /tmp/sealos/bin/
+#
+#      - name: Download sealos patch image
+#        uses: actions/download-artifact@v3
+#        with:
+#          name: patch-image-${{ matrix.arch }}.tar
+#          path: /tmp/sealos/images/
+#
+#      - name: Install ginkgo && Run e2e apply test
+#        shell: bash
+#        run: |
 #          set -ex
 #          echo "job name: ${{ github.job }}"
 #          gzip /tmp/sealos/images/patch-${{ matrix.arch }}.tar
