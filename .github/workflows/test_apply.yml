@@ -22,8 +22,8 @@ jobs:
     strategy:
       matrix:
         arch: [ arm64, amd64 ]
-    #    outputs:
-    #      test_result: ${{ steps.apply_test.outputs.test_result }}
+    outputs:
+      test_result: ${{ steps.apply_test.outputs.test_result }}
     steps:
       - name: Run tests
         id: get_action_link
@@ -80,11 +80,12 @@ jobs:
           #            ALIYUN_ACCESS_KEY_SECRET="${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}" \
           #            ALIYUN_RESOURCE_GROUP_ID="${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}" \
           #            ALIYUN_REGION_ID=cn-hangzhou /tmp/golang/go/bin/go run github.com/onsi/ginkgo/v2/ginkgo -v --focus="apply test" test/e2e/
-          #          if [ $? -eq 0 ]; then
-          #              echo "test_result='${{ matrix.arch }} test success🎉🎉!'" >> "$GITHUB_OUTPUT"
-          #          else
-          #              echo "test_result='‼️ ${{ matrix.arch }} test failure'" >> "$GITHUB_OUTPUT"
-          #          fi
+          testErrCodeExit
+                    if [ $? -eq 0 ]; then
+                        echo 'test_result=success' >> "$GITHUB_OUTPUT"
+                    else
+                        echo test_result=failure' >> "$GITHUB_OUTPUT"
+                    fi
           exit 1
 
 
@@ -93,24 +94,25 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-    if: ${{ always() }}
+    if: ${{ always() }} #success() || failure()
     steps:
       - name: Check test success result
         id: check-result
         if: ${{ success() }}
         run: |
-          echo "TEST_RESULT='Success 🎉🎉!'" >> $GITHUB_ENV
+          echo 'TEST_RESULT="Success 🎉🎉!"' >> $GITHUB_ENV
           echo "${{ env.TEST_RESULT }}"
       - name: Check failure result
         id: check-failure-result
         if: ${{ failure() }}
         run: |
-          echo "TEST_RESULT='‼️ Failure'" >> $GITHUB_ENV          
+          echo 'TEST_RESULT="‼️ Failure"' >> $GITHUB_ENV          
           echo "${{ env.TEST_RESULT }}"
       - name: Add comment to PR with test status
         uses: peter-evans/create-or-update-comment@v1
-        #env:
-        #  TEST_RESULT: ${{ success() && 'Success 🎉🎉!' || '‼️ Failure' }}
+        env:
+          TEST_RESULT: ${{ needs.e2e_apply_test.outputs.test_result == 'success' && 'Success 🎉🎉!' || '‼️ Failure' }}
+        #${{ success() && 'Success 🎉🎉!' || '‼️ Failure' }}
         #        env:
         #          result: ${{ needs.e2e_apply_test.outputs.test_result }}
         with:
