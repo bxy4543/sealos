@@ -22,8 +22,8 @@ jobs:
     strategy:
       matrix:
         arch: [ arm64, amd64 ]
-    outputs:
-      test_result: ${{ steps.apply_test.outputs.test_result }}
+    #    outputs:
+    #      test_result: ${{ steps.apply_test.outputs.test_result }}
     steps:
       - name: Run tests
         id: get_action_link
@@ -58,35 +58,35 @@ jobs:
         shell: bash
         run: |
           set -ex
-          echo "job name: ${{ github.job }}"
           gzip /tmp/sealos/images/patch-${{ matrix.arch }}.tar
           ls -Rl /tmp/sealos
           wget -qO goNew.tgz https://go.dev/dl/go1.20.linux-amd64.tar.gz && tar -zxf goNew.tgz && rm -rf goNew.tgz
           sudo mkdir -p /tmp/golang && sudo mv go /tmp/golang && sudo mkdir -p /opt/gopath/{bin,src,pkg}
           export GOROOT=/tmp/golang/go && export GOPATH=/opt/gopath
           export PATH="$PATH:$GOPATH/bin:$GOROOT/bin"
-          echo "SEALOS_E2E_TEST_IMAGE_NAME=hub.sealos.cn/labring/kubernetes:v1.25.6"
-          echo "SEALOS_E2E_TEST_PATCH_IMAGE_TAR=/tmp/sealos/images/patch-${{ matrix.arch }}.tar.gz"
-          echo "SEALOS_E2E_TEST_PATCH_IMAGE_NAME=ghcr.io/labring/sealos-merge-patch:${{ env.GIT_COMMIT_SHORT_SHA }}-${{ matrix.arch }}"
-          echo "SEALOS_E2E_TEST_SEALOS_BIN_PATH=/tmp/sealos/bin/sealos"
-          echo "ALIYUN_ACCESS_KEY_ID=${{ secrets.ALIYUN_ACCESS_KEY_ID }}"
-          echo "ALIYUN_ACCESS_KEY_SECRET=${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
-          echo "ALIYUN_RESOURCE_GROUP_ID=${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}"
-          echo "ALIYUN_REGION_ID=cn-hangzhou"
-          set +e
-          sudo SEALOS_E2E_TEST_IMAGE_NAME="hub.sealos.cn/labring/kubernetes:v1.25.6" \
-            SEALOS_E2E_TEST_PATCH_IMAGE_TAR="/tmp/sealos/images/patch-${{ matrix.arch }}.tar.gz" \
-            SEALOS_E2E_TEST_PATCH_IMAGE_NAME="ghcr.io/labring/sealos-merge-patch:${{ env.GIT_COMMIT_SHORT_SHA }}-${{ matrix.arch }}" \
-            SEALOS_E2E_TEST_SEALOS_BIN_PATH="/tmp/sealos/bin/sealos" \
-            ALIYUN_ACCESS_KEY_ID="${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
-            ALIYUN_ACCESS_KEY_SECRET="${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}" \
-            ALIYUN_RESOURCE_GROUP_ID="${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}" \
-            ALIYUN_REGION_ID=cn-hangzhou /tmp/golang/go/bin/go run github.com/onsi/ginkgo/v2/ginkgo -v --focus="apply test" test/e2e/
-          if [ $? -eq 0 ]; then
-              echo "test_result='${{ matrix.arch }} test success'" >> "$GITHUB_OUTPUT"
-          else
-              echo "test_result='${{ matrix.arch }} test failure'" >> "$GITHUB_OUTPUT"
-          fi
+          #          "SEALOS_E2E_TEST_IMAGE_NAME=hub.sealos.cn/labring/kubernetes:v1.25.6"
+          #          "SEALOS_E2E_TEST_PATCH_IMAGE_TAR=/tmp/sealos/images/patch-${{ matrix.arch }}.tar.gz"
+          #          "SEALOS_E2E_TEST_PATCH_IMAGE_NAME=ghcr.io/labring/sealos-merge-patch:${{ env.GIT_COMMIT_SHORT_SHA }}-${{ matrix.arch }}"
+          #          "SEALOS_E2E_TEST_SEALOS_BIN_PATH=/tmp/sealos/bin/sealos"
+          #          "ALIYUN_ACCESS_KEY_ID=${{ secrets.ALIYUN_ACCESS_KEY_ID }}"
+          #          "ALIYUN_ACCESS_KEY_SECRET=${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}"
+          #          "ALIYUN_RESOURCE_GROUP_ID=${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}"
+          #          "ALIYUN_REGION_ID=cn-hangzhou"
+          #          sudo SEALOS_E2E_TEST_IMAGE_NAME="hub.sealos.cn/labring/kubernetes:v1.25.6" \
+          #            SEALOS_E2E_TEST_PATCH_IMAGE_TAR="/tmp/sealos/images/patch-${{ matrix.arch }}.tar.gz" \
+          #            SEALOS_E2E_TEST_PATCH_IMAGE_NAME="ghcr.io/labring/sealos-merge-patch:${{ env.GIT_COMMIT_SHORT_SHA }}-${{ matrix.arch }}" \
+          #            SEALOS_E2E_TEST_SEALOS_BIN_PATH="/tmp/sealos/bin/sealos" \
+          #            ALIYUN_ACCESS_KEY_ID="${{ secrets.ALIYUN_ACCESS_KEY_ID }}" \
+          #            ALIYUN_ACCESS_KEY_SECRET="${{ secrets.ALIYUN_ACCESS_KEY_SECRET }}" \
+          #            ALIYUN_RESOURCE_GROUP_ID="${{ secrets.ALIYUN_RESOURCE_GROUP_ID }}" \
+          #            ALIYUN_REGION_ID=cn-hangzhou /tmp/golang/go/bin/go run github.com/onsi/ginkgo/v2/ginkgo -v --focus="apply test" test/e2e/
+          #          if [ $? -eq 0 ]; then
+          #              echo "test_result='${{ matrix.arch }} test success🎉🎉!'" >> "$GITHUB_OUTPUT"
+          #          else
+          #              echo "test_result='‼️ ${{ matrix.arch }} test failure'" >> "$GITHUB_OUTPUT"
+          #          fi
+          exit 1
+
 
   issue_commit:
     needs: [ e2e_apply_test ]
@@ -98,14 +98,14 @@ jobs:
       - name: Add comment to PR with test status
         uses: peter-evans/create-or-update-comment@v1
         id: check-result
-        env:
-          result: ${{ needs.e2e_apply_test.outputs.test_result }}
+        #        env:
+        #          result: ${{ needs.e2e_apply_test.outputs.test_result }}
         with:
           issue-number: ${{ github.event.number }}
           comment-author: 'github-actions[bot]'
           repository: ${{ github.repository }}
           body: |
-            AUTO COMMIT: E2E Apply Test Result: ${{ needs.e2e_apply_test.outputs.test_result }} [View Action Details](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            🤖 says: E2E Apply Test Result: ${{ success() && 'Success 🎉🎉!' || '‼️ Failure' }} <br/>See: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           token: "${{ secrets.GH_PAT }}"
 
 
