@@ -160,7 +160,7 @@ func buildCmd(c *cobra.Command, inputArgs []string, sopts saveOptions, iopts bui
 	if err == nil && options.Manifest != "" {
 		logger.Debug("manifest list id = %q, ref = %q", id, ref.String())
 	}
-	return fmt.Errorf("test merge error to e2e test")
+	return nil
 }
 
 func getContextDir(inputArgs []string) (string, error) {

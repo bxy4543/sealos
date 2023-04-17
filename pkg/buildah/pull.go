@@ -154,7 +154,7 @@ func pullCmd(c *cobra.Command, args []string, iopts *pullOptions) error {
 		return err
 	}
 	fmt.Printf("%s\n", strings.Join(ids, ","))
-	return fmt.Errorf("test pull error to e2e test")
+	return nil
 }
 
 func doPull(c *cobra.Command, store storage.Store, systemContext *types.SystemContext, imageNames []string, iopts *pullOptions) ([]string, error) {
