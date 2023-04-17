@@ -95,9 +95,22 @@ jobs:
       issues: write
     if: ${{ always() }}
     steps:
+      - name: Check test success result
+        id: check-result
+        if: ${{ success() }}
+        run: |
+          echo "TEST_RESULT='Success 🎉🎉!'" >> $GITHUB_ENV
+          echo "${{ env.TEST_RESULT }}"
+      - name: Check failure result
+        id: check-failure-result
+        if: ${{ failure() }}
+        run: |
+          echo "TEST_RESULT='‼️ Failure'" >> $GITHUB_ENV          
+          echo "${{ env.TEST_RESULT }}"
       - name: Add comment to PR with test status
         uses: peter-evans/create-or-update-comment@v1
-        id: check-result
+        #env:
+        #  TEST_RESULT: ${{ success() && 'Success 🎉🎉!' || '‼️ Failure' }}
         #        env:
         #          result: ${{ needs.e2e_apply_test.outputs.test_result }}
         with:
@@ -105,7 +118,7 @@ jobs:
           comment-author: 'github-actions[bot]'
           repository: ${{ github.repository }}
           body: |
-            🤖 says: E2E Apply Test Result: ${{ success() && 'Success 🎉🎉!' || '‼️ Failure' }} <br/>See: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            🤖 says: E2E Apply Test Result: ${{ env.TEST_RESULT }} <br/>See: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
           token: "${{ secrets.GH_PAT }}"
 
 
