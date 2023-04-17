@@ -90,6 +90,9 @@ jobs:
 
   issue_commit:
     needs: [ e2e_apply_test ]
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
     if: ${{ always() }}
     steps:
       - name: Add comment to PR with test status
