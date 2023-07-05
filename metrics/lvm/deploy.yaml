@@ -1,0 +1,67 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: lvm-exporter
+  namespace: resources-system
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: lvm-exporter
+  endpoints:
+    - port: metrics
+      interval: 300s
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lvm-exporter
+  namespace: resources-system
+  labels:
+    app: lvm-exporter
+spec:
+  selector:
+    app: lvm-exporter
+  ports:
+    - protocol: TCP
+      name: metrics
+      port: 9100
+      targetPort: metrics
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: lvm-exporter
+  namespace: resources-system
+spec:
+  selector:
+    matchLabels:
+      app: lvm-exporter
+  template:
+    metadata:
+      labels:
+        app: lvm-exporter
+    spec:
+      containers:
+        - name: lvm-exporter
+          image: registry.cn-hangzhou.aliyuncs.com/bxy4543/lvm-exporter:dev
+          ports:
+            - name: metrics
+              containerPort: 9100
+              protocol: TCP
+          securityContext:
+            privileged: true
+          volumeMounts:
+            - name: dev
+              mountPath: /dev
+            - name: lvm-config
+              mountPath: /etc/lvm
+      volumes:
+        - name: dev
+          hostPath:
+            path: /dev
+        - name: lvm-config
+          hostPath:
+            path: /etc/lvm
