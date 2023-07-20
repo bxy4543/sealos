@@ -19,6 +19,7 @@ jobs:
     permissions:
       issues: write
     strategy:
+      fail-fast: false
       matrix:
         arch: [ arm64, amd64 ]
     outputs:

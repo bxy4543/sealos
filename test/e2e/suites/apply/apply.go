@@ -8,6 +8,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/labring/sealos/test/e2e/suites/operators"
+
 	"github.com/labring/sealos/test/e2e/testhelper/utils"
 
 	"github.com/labring/sealos/pkg/types/v1beta1"
@@ -107,6 +109,16 @@ func (a *Applier) initImage() {
 		}
 		err = a.RemoteSealosCmd.ImageLoad(a.Infra.PatchImageTar)
 		utils.CheckErr(err)
+		images, err := operators.NewFakeImage(a.RemoteSealosCmd).ListImages(true)
+		utils.CheckErr(err)
+		for _, image := range images {
+			for i := range image.Names {
+				if strings.Contains(image.Names[i], "sealos-patch") {
+					a.Infra.PatchImageName = image.Names[i]
+					break
+				}
+			}
+		}
 	} else {
 		err = a.RemoteSealosCmd.ImagePull(&cmd2.PullOptions{
 			ImageRefs: []string{a.Infra.PatchImageName},
