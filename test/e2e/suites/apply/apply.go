@@ -111,6 +111,7 @@ func (a *Applier) initImage() {
 		utils.CheckErr(err)
 		images, err := operators.NewFakeImage(a.RemoteSealosCmd).ListImages(true)
 		utils.CheckErr(err)
+		logger.Info("images:", images)
 		for _, image := range images {
 			for i := range image.Names {
 				if strings.Contains(image.Names[i], "sealos-patch") {
