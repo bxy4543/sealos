@@ -58,6 +58,7 @@ jobs:
           sudo su
           chmod a+x /tmp/e2e.test
           gzip /tmp/sealos/images/patch-${{ matrix.arch }}.tar
+          ls /tmp/sealos/images/
           /tmp/e2e.test --ginkgo.v --ginkgo.focus="E2E_sealos_apply_infra_test"
           echo 'test_result=success' >> "$GITHUB_OUTPUT"
   issue_commit:
