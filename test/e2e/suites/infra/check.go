@@ -51,7 +51,7 @@ func (f *FakeInfra) PreSetEnv() {
 	f.ImageName = settings.GetEnvWithDefault(settings.TestImageName, settings.DefaultTestImageName)
 	f.ImageTar = os.Getenv(settings.TestImageTar)
 	f.PatchImageTar = os.Getenv(settings.TestPatchImageTar)
-	f.PatchImageName = settings.GetEnvWithDefault(settings.TestPatchImageName, settings.DefaultPatchImageName)
+	f.PatchImageName = os.Getenv(settings.TestPatchImageName)
 	f.InfraDriver = settings.GetEnvWithDefault(settings.TestInfra, settings.DefaultInfraDriver)
 	f.TestDir = settings.GetEnvWithDefault(settings.TestDir, settings.DefaultTestDir)
 	f.ClusterName = settings.GetEnvWithDefault(settings.TestClusterName, settings.DefaultTestClusterName)
