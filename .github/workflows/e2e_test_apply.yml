@@ -52,6 +52,7 @@ jobs:
           ALIYUN_ACCESS_KEY_ID: ${{ secrets.E2E_ALIYUN_ACCESS_KEY_ID }}
           ALIYUN_ACCESS_KEY_SECRET: ${{ secrets.E2E_ALIYUN_ACCESS_KEY_SECRET }}
           ALIYUN_RESOURCE_GROUP_ID: ${{ secrets.E2E_ALIYUN_RESOURCE_GROUP_ID }}
+          ALIYUN_REGION_ID: ${{ secrets.E2E_ALIYUN_REGION_ID }}
         run: |
           set -ex
           sudo su
@@ -64,7 +65,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-    if: ${{ always() && contains(github.event.pull_request.labels.*.name, 'need-e2e-apply-test') }} #success() || failure()
+    if: ${{ always() && github.event.label.name == 'need-e2e-apply-test' }} #success() || failure()
     steps:
       - name: Add comment to PR with test status
         uses: peter-evans/create-or-update-comment@v1
