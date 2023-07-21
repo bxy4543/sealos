@@ -109,15 +109,20 @@ func (a *Applier) initImage() {
 		}
 		err = a.RemoteSealosCmd.ImageLoad(a.Infra.PatchImageTar)
 		utils.CheckErr(err)
-		images, err := operators.NewFakeImage(a.RemoteSealosCmd).ListImages(true)
+		images, err := operators.NewFakeImage(a.RemoteSealosCmd).ListImages(false)
 		utils.CheckErr(err)
 		logger.Info("images:", images)
+		patchImageName := ""
 		for _, image := range images {
 			for i := range image.Names {
 				if strings.Contains(image.Names[i], "sealos-patch") {
-					a.Infra.PatchImageName = image.Names[i]
+					patchImageName = image.Names[i]
 					break
 				}
+			}
+			if patchImageName != "" {
+				a.Infra.PatchImageName = patchImageName
+				break
 			}
 		}
 	} else {
