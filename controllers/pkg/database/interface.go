@@ -34,6 +34,7 @@ type Interface interface {
 	GetBillingCount(accountType accountv1.Type, startTime, endTime time.Time) (count, amount int64, err error)
 	GenerateMeteringData(startTime, endTime time.Time, prices map[string]resources.Price) error
 	InsertMonitor(ctx context.Context, monitors ...*resources.Monitor) error
+	InsertMeteringData(ctx context.Context, metering *resources.Metering) error
 	DropMonitorCollectionsOlderThan(days int) error
 	Disconnect(ctx context.Context) error
 	Creator

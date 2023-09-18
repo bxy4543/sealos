@@ -1,35 +1,26 @@
-// Copyright © 2023 sealos.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
-
 package main
 
 import (
 	"context"
 	"fmt"
+	"math"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
-	"github.com/spf13/cobra"
+	"github.com/labring/sealos/controllers/pkg/utils/env"
+
+	v1 "github.com/prometheus/client_golang/api/prometheus/v1"
+
+	"github.com/labring/sealos/controllers/pkg/prometheus"
 
 	"github.com/labring/sealos/controllers/pkg/database"
 	"github.com/labring/sealos/controllers/pkg/resources"
-	"github.com/labring/sealos/controllers/pkg/utils/env"
-	"github.com/labring/sealos/controllers/pkg/utils/flags"
-	"github.com/labring/sealos/controllers/pkg/utils/logger"
-	"github.com/labring/sealos/controllers/pkg/utils/retry"
+	"github.com/labring/sealos/pkg/utils/flags"
+	"github.com/labring/sealos/pkg/utils/logger"
+	"github.com/labring/sealos/pkg/utils/retry"
+	"github.com/spf13/cobra"
 )
 
 type Config struct {
@@ -39,6 +30,7 @@ type Config struct {
 	MongoPassword      string
 	RetentionDay       int64
 	PermanentRetention bool
+	PrometheusURL      string
 	// interval of metering resources
 	Interval time.Duration
 }
@@ -168,12 +160,71 @@ func executeTask() error {
 	if err := dbClient.GenerateMeteringData(startTime, endTime, prices); err != nil {
 		return fmt.Errorf("failed to generate metering data: %v", err)
 	}
+	// network traffic
+	netPrice, exist := prices[resources.NetWork]
+	if config.PrometheusURL != "" && exist {
+		if err = handleNetworkTraffic(dbClient, config, netPrice, startTime, endTime); err != nil {
+			logger.Error("failed to handle network traffic: %v", err)
+		}
+	}
+
 	// create tomorrow monitor time series
 	if err := CreateMonitorTimeSeries(dbClient, now.Add(24*time.Hour)); err != nil {
 		logger.Debug("failed to create monitor time series: %v", err)
 	}
 	return nil
 }
+
+func handleNetworkTraffic(dbClient database.Interface, config *Config, netPrice resources.Price, startTime, endTime time.Time) error {
+	prom, err := prometheus.NewPrometheus(config.PrometheusURL)
+	if err != nil {
+		return fmt.Errorf("failed to new prometheus client: %v", err)
+	}
+
+	queryParams := prometheus.QueryParams{
+		Range: &v1.Range{
+			Start: startTime,
+			End:   endTime,
+			Step:  time.Hour,
+		},
+	}
+	metering, err := queryNetworkTraffic(prom, queryParams)
+	if err != nil {
+		return fmt.Errorf("failed to query all network traffic: %v", err)
+	}
+
+	return calculateAndInsertData(dbClient, metering, netPrice, endTime)
+}
+
+func queryNetworkTraffic(prom prometheus.Interface, queryParams prometheus.QueryParams) ([]*resources.Metering, error) {
+	return prom.QueryAllNSTraffics(queryParams)
+}
+
+func calculateAndInsertData(dbClient database.Interface, metering []*resources.Metering, netPrice resources.Price, endTime time.Time) error {
+	for _, meter := range metering {
+		/*		meter.Value = calculateValue(meter.Value)
+				meter.Amount = meter.Value * netPrice.Price*/
+		meter.Amount = calculateAmount(netPrice, meter.Value)
+		if meter.Amount == 0 {
+			continue
+		}
+		meter.Time = endTime
+		if err := dbClient.InsertMeteringData(context.Background(), meter); err != nil {
+			return fmt.Errorf("failed to insert metering data: %v", err)
+		}
+	}
+	return nil
+}
+
+func calculateAmount(netPrice resources.Price, value int64) int64 {
+	return int64(math.Ceil(float64(netPrice.Price) / float64(1024*1024) * float64(value)))
+}
+
+//func calculateValue(value int64) int64 {
+//	return int64(math.Ceil(
+//		float64(resource.NewQuantity(value, resource.BinarySI).MilliValue()) /
+//			float64(resources.PricesUnit[resources.NetWork].MilliValue())))
+//}
 
 func CreateMonitorTimeSeries(dbClient database.Interface, collTime time.Time) error {
 	return dbClient.CreateMonitorTimeSeriesIfNotExist(collTime)
@@ -238,5 +289,6 @@ func init() {
 		MongoPassword:      os.Getenv(database.MongoPassword),
 		RetentionDay:       env.GetInt64EnvWithDefault(database.RetentionDay, database.DefaultRetentionDay),
 		PermanentRetention: os.Getenv(database.PermanentRetention) == "true",
+		PrometheusURL:      os.Getenv(prometheus.URLEnv),
 	}
 }
