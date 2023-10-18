@@ -22,22 +22,22 @@ func RegisterPayRouter() {
 
 	payGroup := router.Group(helper.GROUP)
 	{
-		payGroup.PUT(helper.CreatePayMethod, func(c *gin.Context) {
+		payGroup.POST(helper.CreatePayMethod, func(c *gin.Context) {
 			api.CreatePayMethod(c, client)
 		})
-		payGroup.PUT(helper.CreatePayApp, func(c *gin.Context) {
+		payGroup.POST(helper.CreatePayApp, func(c *gin.Context) {
 			api.CreatePayApp(c, client)
 		})
-		payGroup.GET(helper.GetAppDetails, func(c *gin.Context) {
+		payGroup.POST(helper.GetAppDetails, func(c *gin.Context) {
 			api.GetAppDetails(c, client)
 		})
-		payGroup.GET(helper.GetSession, func(c *gin.Context) {
+		payGroup.POST(helper.GetSession, func(c *gin.Context) {
 			api.GetSession(c, client)
 		})
-		payGroup.GET(helper.GetPayStatus, func(c *gin.Context) {
+		payGroup.POST(helper.GetPayStatus, func(c *gin.Context) {
 			api.GetPayStatus(c, client)
 		})
-		payGroup.GET(helper.GetBill, func(c *gin.Context) {
+		payGroup.POST(helper.GetBill, func(c *gin.Context) {
 			api.GetBill(c, client)
 		})
 	}
