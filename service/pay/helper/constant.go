@@ -2,9 +2,8 @@ package helper
 
 // DB
 const (
-	DBURI = "dburi"
-	// TODO the database needs a new name
-	Database           = "xy"
+	DBURI              = "MONGO_URI"
+	Database           = "sealos-resources"
 	AppColl            = "app"
 	PayMethodColl      = "paymethod"
 	PaymentDetailsColl = "paymentdetails"
@@ -39,7 +38,8 @@ const (
 const (
 	LOCALHOST       = "http://localhost:2303"
 	DNS             = "https://coqveoktbleo.dev.sealos.top"
-	GROUP           = "/v1alpha1/pay"
+	VERSION         = "/v1alpha1"
+	GROUP           = VERSION + "/pay"
 	CreatePayMethod = "/method"
 	CreatePayApp    = "/app"
 	GetAppDetails   = "/details"

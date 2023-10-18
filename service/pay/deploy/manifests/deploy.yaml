@@ -25,9 +25,9 @@ spec:
     spec:
       containers:
         - envFrom:
-            - secretRef:
-                name: pay-secret
-                optional: true
+          - secretRef:
+              name: pay-secret
+              optional: true
           image: ghcr.io/labring/sealos-pay-service:latest
           imagePullPolicy: Always
           name: pay-service

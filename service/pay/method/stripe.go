@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/labring/sealos/pkg/utils/logger"
+
 	"github.com/labring/sealos/controllers/pkg/pay"
 
 	"github.com/gin-gonic/gin"
@@ -45,6 +47,7 @@ func GetStripeSession(c *gin.Context, request *helper.Request, client *mongo.Cli
 
 	session, err := pay.CreateCheckoutSession(amount, pay.CNY, DefaultURL+os.Getenv(helper.StripeSuccessPostfix), DefaultURL+os.Getenv(helper.StripeCancelPostfix))
 	if err != nil {
+		logger.Error("create stripe session failed", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("error session : %v", err)})
 		return
 	}
