@@ -5,6 +5,9 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/labring/sealos/pkg/utils/logger"
+	gonanoid "github.com/matoous/go-nanoid/v2"
+
 	"github.com/gin-gonic/gin"
 	"github.com/labring/sealos/controllers/pkg/pay"
 	"github.com/labring/sealos/service/pay/handler"
@@ -44,6 +47,12 @@ func GetWechatURL(c *gin.Context, request *helper.Request, client *mongo.Client)
 		"tradeNO": tradeNO,
 		"codeURL": codeURL,
 	}
+	orderID, err := gonanoid.New(18)
+	if err != nil {
+		logger.Error("create orderID failed", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("error orderID : %v", err)})
+		return
+	}
 
 	// Ensure that these operations are atomic, meaning that if the lower operation fails,
 	// the upper operation must be rolled back
@@ -51,7 +60,7 @@ func GetWechatURL(c *gin.Context, request *helper.Request, client *mongo.Client)
 	// and if either fails, they are rolled back
 
 	// insert payment details into database
-	orderID, err := handler.InsertDetails(client, user, helper.Wechat, amountStr, currency, appID, wechatDetails)
+	err = handler.InsertDetails(client, user, helper.Wechat, amountStr, currency, orderID, appID, wechatDetails)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("insert wechat payment details failed: %s, %v", codeURL, err)})
 		return

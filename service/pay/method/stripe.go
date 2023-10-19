@@ -6,6 +6,8 @@ import (
 	"os"
 	"strconv"
 
+	gonanoid "github.com/matoous/go-nanoid/v2"
+
 	"github.com/labring/sealos/pkg/utils/logger"
 
 	"github.com/labring/sealos/controllers/pkg/pay"
@@ -45,7 +47,14 @@ func GetStripeSession(c *gin.Context, request *helper.Request, client *mongo.Cli
 		return
 	}
 
-	session, err := pay.CreateCheckoutSession(amount, pay.CNY, DefaultURL+os.Getenv(helper.StripeSuccessPostfix), DefaultURL+os.Getenv(helper.StripeCancelPostfix))
+	orderID, err := gonanoid.New(18)
+	if err != nil {
+		logger.Error("create orderID failed", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("error orderID : %v", err)})
+		return
+	}
+
+	session, err := pay.CreateCheckoutSession(amount, pay.CNY, helper.AppendURLParam(DefaultURL+os.Getenv(helper.StripeSuccessPostfix), "orderID", orderID), helper.AppendURLParam(DefaultURL+os.Getenv(helper.StripeCancelPostfix), "orderID", orderID))
 	if err != nil {
 		logger.Error("create stripe session failed", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("error session : %v", err)})
@@ -64,7 +73,7 @@ func GetStripeSession(c *gin.Context, request *helper.Request, client *mongo.Cli
 	// and if either fails, they are rolled back
 
 	// insert payment details into database
-	orderID, err := handler.InsertDetails(client, user, helper.Stripe, amountStr, currency, appID, stripeDetails)
+	err = handler.InsertDetails(client, user, helper.Stripe, amountStr, currency, orderID, appID, stripeDetails)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("insert stripe payment details failed: %s, %v", session.ID, err)})
 		return
