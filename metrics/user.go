@@ -3,19 +3,21 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	v12 "github.com/labring/sealos/controllers/account/api/v1"
 	"github.com/labring/sealos/controllers/pkg/database"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	v13 "k8s.io/api/core/v1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
-	"log"
-	"net/http"
-	"os"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var (
@@ -125,7 +127,7 @@ func getUserPodCount() float64 {
 
 	var totalPods int64
 	for _, pod := range podList.Items {
-		if strings.HasPrefix(pod.Namespace, "ns-") {
+		if pod.Status.Phase == v13.PodRunning && strings.HasPrefix(pod.Namespace, "ns-") {
 			totalPods++
 		}
 	}
