@@ -350,3 +350,22 @@ func TestMongoDB_GetBillingLastUpdateTime(t *testing.T) {
 	}
 	t.Logf("lastUpdateTime: %v", lastUpdateTime)
 }
+
+func TestMongoDB_GetBillingCount(t *testing.T) {
+	dbCTX := context.Background()
+	// os.Setenv("MONGODB_URI", "")
+	m, err := NewMongoDB(dbCTX, os.Getenv("MONGODB_URI"))
+	if err != nil {
+		t.Errorf("failed to connect mongo: error = %v", err)
+	}
+	defer func() {
+		if err = m.Disconnect(dbCTX); err != nil {
+			t.Errorf("failed to disconnect mongo: error = %v", err)
+		}
+	}()
+	count, amount, err := m.GetBillingCount(accountv1.Recharge)
+	if err != nil {
+		t.Errorf("failed to get billing count: error = %v", err)
+	}
+	t.Logf("count: %d, amount: %d", count, amount)
+}

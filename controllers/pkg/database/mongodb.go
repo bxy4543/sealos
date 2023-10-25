@@ -49,6 +49,11 @@ type AccountBalanceSpecBSON struct {
 	Type    accountv1.Type  `json:"type" bson:"type"`
 	Costs   accountv1.Costs `json:"costs,omitempty" bson:"costs,omitempty"`
 	Amount  int64           `json:"amount,omitempty" bson:"amount"`
+	Payment *Payment        `json:"payment,omitempty" bson:"payment,omitempty"`
+}
+
+type Payment struct {
+	Amount int64 `json:"amount,omitempty" bson:"amount,omitempty"`
 }
 
 func (m *MongoDB) Disconnect(ctx context.Context) error {
@@ -503,16 +508,12 @@ func (m *MongoDB) GetBillingCount(accountType accountv1.Type) (count, amount int
 	}
 	for i := range accountBalanceList {
 		count++
-		amount += accountBalanceList[i].Amount
+		if accountBalanceList[i].Payment != nil && accountBalanceList[i].Payment.Amount > 0 {
+			amount += accountBalanceList[i].Payment.Amount
+		} else {
+			amount += accountBalanceList[i].Amount
+		}
 	}
-	//for cursor.Next(context.Background()) {
-	//	var accountBalance AccountBalanceSpecBSON
-	//	if err := cursor.Decode(&accountBalance); err != nil {
-	//		return 0, 0, err
-	//	}
-	//	count++
-	//	amount += accountBalance.Amount
-	//}
 	return
 }
 
