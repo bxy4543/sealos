@@ -53,8 +53,14 @@ func GetStripeSession(c *gin.Context, request *helper.Request, client *mongo.Cli
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("error orderID : %v", err)})
 		return
 	}
-
-	session, err := pay.CreateCheckoutSession(amount, pay.CNY, helper.AppendURLParam(DefaultURL+os.Getenv(helper.StripeSuccessPostfix), "orderID", orderID), helper.AppendURLParam(DefaultURL+os.Getenv(helper.StripeCancelPostfix), "orderID", orderID))
+	success, cancel := DefaultURL+os.Getenv(helper.StripeSuccessPostfix), DefaultURL+os.Getenv(helper.StripeCancelPostfix)
+	if request.StripeSuccessURL != "" {
+		success = request.StripeSuccessURL
+	}
+	if request.StripeCancelURL != "" {
+		cancel = request.StripeCancelURL
+	}
+	session, err := pay.CreateCheckoutSession(amount, pay.CNY, helper.AppendURLParam(success, "orderID", orderID), helper.AppendURLParam(cancel, "orderID", orderID))
 	if err != nil {
 		logger.Error("create stripe session failed", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("error session : %v", err)})
