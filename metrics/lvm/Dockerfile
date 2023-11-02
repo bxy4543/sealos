@@ -1,4 +1,4 @@
-FROM alpine
+FROM dockerproxy.com/library/alpine
 
 RUN apk add --no-cache lvm2
 

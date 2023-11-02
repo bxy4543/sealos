@@ -14,15 +14,21 @@ import (
 )
 
 var (
-	lvmVgsTotalCapacity = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "lvm_vgs_total_capacity",
-		Help: "Total capacity of all volume groups in bytes",
-	})
+	lvmVgsTotalCapacity = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "lvm_vgs_total_capacity",
+			Help: "Total capacity of all volume groups in bytes",
+		},
+		[]string{"node"},
+	)
 
-	lvmVgsTotalFree = prometheus.NewGauge(prometheus.GaugeOpts{
-		Name: "lvm_vgs_total_free",
-		Help: "Total free space of all volume groups in bytes",
-	})
+	lvmVgsTotalFree = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "lvm_vgs_total_free",
+			Help: "Total free space of all volume groups in bytes",
+		},
+		[]string{"node"},
+	)
 )
 
 func init() {
@@ -36,7 +42,7 @@ type MetricsCollector struct {
 
 func NewMetricsCollector() *MetricsCollector {
 	return &MetricsCollector{
-		UpdateInterval: 30,
+		UpdateInterval: 10,
 	}
 }
 
@@ -52,8 +58,9 @@ func (mc *MetricsCollector) updateMetrics() {
 		vgAmountTotal.Add(vg.Size)
 		vgFreeTotal.Add(vg.Free)
 	}
-	lvmVgsTotalCapacity.Set(float64(vgAmountTotal.Value()))
-	lvmVgsTotalFree.Set(float64(vgFreeTotal.Value()))
+	nodeName := os.Getenv("NODE_NAME")
+	lvmVgsTotalCapacity.With(prometheus.Labels{"node": nodeName}).Set(float64(vgAmountTotal.Value()))
+	lvmVgsTotalFree.With(prometheus.Labels{"node": nodeName}).Set(float64(vgFreeTotal.Value()))
 	log.Printf("Updated LVM metrics: total capacity %v, total free %v\n", vgAmountTotal, vgFreeTotal)
 }
 
