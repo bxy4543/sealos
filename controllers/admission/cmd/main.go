@@ -19,6 +19,8 @@ package main
 import (
 	"flag"
 
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
 	"os"
 
 	v1 "github.com/labring/sealos/controllers/admission/api/v1"
@@ -108,6 +110,7 @@ func main() {
 		setupLog.Error(err, "unable to create namespace webhook")
 		os.Exit(1)
 	}
+	mgr.GetWebhookServer().Register("/validate-opsrequest-sts-pvc", &webhook.Admission{Handler: &v1.PvcValidator{Client: mgr.GetClient(), PromoURL: os.Getenv("PROMO_URL")}})
 
 	//+kubebuilder:scaffold:builder
 
