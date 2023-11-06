@@ -13,6 +13,8 @@ ENV icpEnabled="false"
 ENV icpEndpoint=""
 ENV icpKey=""
 
+ENV promoUrl=""
+
 ENV namespaceWebhookEnabled="true"
 ENV namespaceWebhookFailurePolicy="Fail"
 

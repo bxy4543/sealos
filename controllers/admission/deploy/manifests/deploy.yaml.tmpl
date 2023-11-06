@@ -302,6 +302,8 @@ spec:
           value: '{{ .icpEndpoint }}'
         - name: ICP_KEY
           value: '{{ .icpKey }}'
+        - name: PROMO_URL
+          value: '{{ .promoUrl }}'
         image: ghcr.io/labring/sealos-admission-controller:latest
         livenessProbe:
           httpGet:
@@ -542,5 +544,34 @@ webhooks:
     - DELETE
     resources:
     - namespaces
+  sideEffects: None
+- admissionReviewVersions:
+  - v1
+  - v1beta1
+  clientConfig:
+    service:
+      name: admission-webhook-service
+      namespace: sealos-system
+      path: /validate-opsrequest-sts-pvc
+  failurePolicy: {{ .namespaceWebhookFailurePolicy }}
+  name: vresources.kb.io
+  namespaceSelector:
+    matchExpressions:
+      - key: user.sealos.io/owner
+        operator: Exists
+  rules:
+  - apiGroups:
+    - apps.kubeblocks.io
+    - apps
+    apiVersions:
+    - v1alpha1
+    - v1
+    operations:
+    - CREATE
+    - UPDATE
+    - DELETE
+    resources:
+    - opsrequests
+    - statefulsets
   sideEffects: None
 {{ end }}

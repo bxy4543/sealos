@@ -133,10 +133,6 @@ func (v *PvcValidator) checkStorageCapacity(nodeNames []string, requestedStorage
 	return nil
 }
 
-//func (v *PvcValidator) ValidateDelete(ctx context.Context, obj runtime.Object) error {
-//	return nil
-//}
-
 func (v *PvcValidator) newLVMVgTotalFreeQuery(node string) (int64, error) {
 	prom, err := prometheus.NewPrometheus(v.PromoURL)
 	if err != nil {
