@@ -3,7 +3,6 @@ package v1
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	admissionv1 "k8s.io/api/admission/v1"
 
@@ -29,24 +28,9 @@ type PvcValidator struct {
 }
 
 func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	var obj runtime.Object
-	var oldObj runtime.Object
+	var obj = req.Object.Object
+	var oldObj = req.OldObject.Object
 	var err error
-
-	switch req.Kind.Kind {
-	case "OpsRequest":
-		obj = &kbv1alpha1.OpsRequest{}
-		if req.Operation == admissionv1.Update {
-			oldObj = &kbv1alpha1.OpsRequest{}
-		}
-	case "StatefulSet":
-		obj = &v1beta2.StatefulSet{}
-		if req.Operation == admissionv1.Update {
-			oldObj = &v1beta2.StatefulSet{}
-		}
-	default:
-		return admission.Errored(http.StatusBadRequest, fmt.Errorf("unhandled kind: %s", req.Kind.Kind))
-	}
 	switch req.Operation {
 	case admissionv1.Create:
 		err = v.ValidateCreate(ctx, obj)
