@@ -25,14 +25,12 @@ import (
 
 	v1 "github.com/labring/sealos/controllers/admission/api/v1"
 
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
 
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	//+kubebuilder:scaffold:imports
@@ -91,25 +89,25 @@ func main() {
 		os.Exit(1)
 	}
 
-	if (&v1.IngressValidator{}).SetupWithManager(mgr) != nil {
-		setupLog.Error(err, "unable to create ingress validator webhook")
-		os.Exit(1)
-	}
-
-	if (&v1.IngressMutator{}).SetupWithManager(mgr) != nil {
-		setupLog.Error(err, "unable to create ingress mutator webhook")
-		os.Exit(1)
-	}
-
-	err = builder.WebhookManagedBy(mgr).
-		For(&corev1.Namespace{}).
-		WithValidator(&v1.NamespaceValidator{Client: mgr.GetClient()}).
-		WithDefaulter(&v1.NamespaceMutator{Client: mgr.GetClient()}).
-		Complete()
-	if err != nil {
-		setupLog.Error(err, "unable to create namespace webhook")
-		os.Exit(1)
-	}
+	//if (&v1.IngressValidator{}).SetupWithManager(mgr) != nil {
+	//	setupLog.Error(err, "unable to create ingress validator webhook")
+	//	os.Exit(1)
+	//}
+	//
+	//if (&v1.IngressMutator{}).SetupWithManager(mgr) != nil {
+	//	setupLog.Error(err, "unable to create ingress mutator webhook")
+	//	os.Exit(1)
+	//}
+	//
+	//err = builder.WebhookManagedBy(mgr).
+	//	For(&corev1.Namespace{}).
+	//	WithValidator(&v1.NamespaceValidator{Client: mgr.GetClient()}).
+	//	WithDefaulter(&v1.NamespaceMutator{Client: mgr.GetClient()}).
+	//	Complete()
+	//if err != nil {
+	//	setupLog.Error(err, "unable to create namespace webhook")
+	//	os.Exit(1)
+	//}
 	mgr.GetWebhookServer().Register("/validate-opsrequest-sts-pvc", &webhook.Admission{Handler: &v1.PvcValidator{Client: mgr.GetClient(), PromoURL: os.Getenv("PROMO_URL")}})
 
 	//+kubebuilder:scaffold:builder
