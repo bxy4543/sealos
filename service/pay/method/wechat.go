@@ -36,7 +36,7 @@ func GetWechatURL(c *gin.Context, request *helper.Request, client *mongo.Client)
 
 	user := request.User
 	tradeNO := pay.GetRandomString(32)
-	codeURL, err := pay.WechatPay(amount, user, tradeNO, "", "")
+	codeURL, err := pay.WechatPay(amount, user, tradeNO, request.Describe, request.WechatCallbackURL)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("error codeURL : %s, %v", codeURL, err)})
 		return
