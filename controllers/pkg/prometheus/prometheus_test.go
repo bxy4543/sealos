@@ -21,7 +21,6 @@ func Test_prometheus_QueryLvmVgsTotalFree(t *testing.T) {
 	fmt.Println("value: ", value)
 
 	fmt.Println(formatBytes(value))
-
 }
 
 func formatBytes(bytes float64) string {
