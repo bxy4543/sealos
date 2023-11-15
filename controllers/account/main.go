@@ -22,8 +22,6 @@ import (
 	"os"
 	"time"
 
-	"github.com/labring/sealos/controllers/pkg/resources"
-
 	"github.com/labring/sealos/controllers/pkg/database"
 
 	notificationv1 "github.com/labring/sealos/controllers/pkg/notification/api/v1"
@@ -31,7 +29,6 @@ import (
 	userv1 "github.com/labring/sealos/controllers/user/api/v1"
 
 	accountv1 "github.com/labring/sealos/controllers/account/api/v1"
-	"github.com/labring/sealos/controllers/account/controllers"
 	"github.com/labring/sealos/controllers/account/controllers/cache"
 
 	"k8s.io/apimachinery/pkg/runtime"
@@ -39,8 +36,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
@@ -105,18 +100,18 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
-	watchClient, err := client.NewWithWatch(mgr.GetConfig(), client.Options{
-		Scheme: mgr.GetScheme(),
-		Mapper: mgr.GetRESTMapper(),
-	})
-	if err != nil {
-		setupLog.Error(err, "unable to get watch client")
-		os.Exit(1)
-	}
-	rateOpts := controller.Options{
-		MaxConcurrentReconciles: concurrent,
-		RateLimiter:             rate.GetRateLimiter(rateLimiterOptions),
-	}
+	//watchClient, err := client.NewWithWatch(mgr.GetConfig(), client.Options{
+	//	Scheme: mgr.GetScheme(),
+	//	Mapper: mgr.GetRESTMapper(),
+	//})
+	//if err != nil {
+	//	setupLog.Error(err, "unable to get watch client")
+	//	os.Exit(1)
+	//}
+	//rateOpts := controller.Options{
+	//	MaxConcurrentReconciles: concurrent,
+	//	RateLimiter:             rate.GetRateLimiter(rateLimiterOptions),
+	//}
 	dbCtx := context.Background()
 	dbClient, err := database.NewMongoDB(dbCtx, os.Getenv(database.MongoURI))
 	if err != nil {
@@ -129,28 +124,28 @@ func main() {
 			setupLog.Error(err, "unable to disconnect from mongo")
 		}
 	}()
-	if err = (&controllers.AccountReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		DBClient: dbClient,
-	}).SetupWithManager(mgr, rateOpts); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Account")
-		os.Exit(1)
-	}
-	if err = (&controllers.PaymentReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr, rateOpts); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Payment")
-		os.Exit(1)
-	}
-	if err = (&controllers.DebtReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr, rateOpts); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Debt")
-		os.Exit(1)
-	}
+	//if err = (&controllers.AccountReconciler{
+	//	Client:   mgr.GetClient(),
+	//	Scheme:   mgr.GetScheme(),
+	//	DBClient: dbClient,
+	//}).SetupWithManager(mgr, rateOpts); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "Account")
+	//	os.Exit(1)
+	//}
+	//if err = (&controllers.PaymentReconciler{
+	//	Client: mgr.GetClient(),
+	//	Scheme: mgr.GetScheme(),
+	//}).SetupWithManager(mgr, rateOpts); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "Payment")
+	//	os.Exit(1)
+	//}
+	//if err = (&controllers.DebtReconciler{
+	//	Client: mgr.GetClient(),
+	//	Scheme: mgr.GetScheme(),
+	//}).SetupWithManager(mgr, rateOpts); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "Debt")
+	//	os.Exit(1)
+	//}
 
 	if err = cache.SetupCache(mgr); err != nil {
 		setupLog.Error(err, "unable to cache controller")
@@ -162,67 +157,67 @@ func main() {
 		mgr.GetWebhookServer().Register("/validate-v1-sealos-cloud", &webhook.Admission{Handler: &accountv1.DebtValidate{Client: mgr.GetClient(), PvcValidator: &accountv1.PvcValidator{Client: mgr.GetClient()}}})
 	}
 
-	err = dbClient.InitDefaultPropertyTypeLS()
-	if err != nil {
-		setupLog.Error(err, "unable to get property type")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.BillingRecordQueryReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr, rateOpts); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "BillingRecordQuery")
-		os.Exit(1)
-	}
-	if err = (&controllers.BillingReconciler{
-		DBClient:   dbClient,
-		Properties: resources.DefaultPropertyTypeLS,
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-	}).SetupWithManager(mgr, rateOpts); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Billing")
-		os.Exit(1)
-	}
-
-	if err = (&controllers.PodReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Pod")
-		os.Exit(1)
-	}
-	if err = (&controllers.NamespaceReconciler{
-		Client: watchClient,
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Namespace")
-		os.Exit(1)
-	}
-	if err = (&controllers.TransferReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		DBClient: dbClient,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "Transfer")
-		os.Exit(1)
-	}
-	if err = (&controllers.NamespaceBillingHistoryReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "NamespaceBillingHistory")
-		os.Exit(1)
-	}
-	if err = (&controllers.BillingInfoQueryReconciler{
-		Client:     mgr.GetClient(),
-		Scheme:     mgr.GetScheme(),
-		DBClient:   dbClient,
-		Properties: resources.DefaultPropertyTypeLS,
-	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "BillingInfoQuery")
-		os.Exit(1)
-	}
+	//err = dbClient.InitDefaultPropertyTypeLS()
+	//if err != nil {
+	//	setupLog.Error(err, "unable to get property type")
+	//	os.Exit(1)
+	//}
+	//
+	//if err = (&controllers.BillingRecordQueryReconciler{
+	//	Client: mgr.GetClient(),
+	//	Scheme: mgr.GetScheme(),
+	//}).SetupWithManager(mgr, rateOpts); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "BillingRecordQuery")
+	//	os.Exit(1)
+	//}
+	//if err = (&controllers.BillingReconciler{
+	//	DBClient:   dbClient,
+	//	Properties: resources.DefaultPropertyTypeLS,
+	//	Client:     mgr.GetClient(),
+	//	Scheme:     mgr.GetScheme(),
+	//}).SetupWithManager(mgr, rateOpts); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "Billing")
+	//	os.Exit(1)
+	//}
+	//
+	//if err = (&controllers.PodReconciler{
+	//	Client: mgr.GetClient(),
+	//	Scheme: mgr.GetScheme(),
+	//}).SetupWithManager(mgr); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "Pod")
+	//	os.Exit(1)
+	//}
+	//if err = (&controllers.NamespaceReconciler{
+	//	Client: watchClient,
+	//	Scheme: mgr.GetScheme(),
+	//}).SetupWithManager(mgr); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "Namespace")
+	//	os.Exit(1)
+	//}
+	//if err = (&controllers.TransferReconciler{
+	//	Client:   mgr.GetClient(),
+	//	Scheme:   mgr.GetScheme(),
+	//	DBClient: dbClient,
+	//}).SetupWithManager(mgr); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "Transfer")
+	//	os.Exit(1)
+	//}
+	//if err = (&controllers.NamespaceBillingHistoryReconciler{
+	//	Client: mgr.GetClient(),
+	//	Scheme: mgr.GetScheme(),
+	//}).SetupWithManager(mgr); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "NamespaceBillingHistory")
+	//	os.Exit(1)
+	//}
+	//if err = (&controllers.BillingInfoQueryReconciler{
+	//	Client:     mgr.GetClient(),
+	//	Scheme:     mgr.GetScheme(),
+	//	DBClient:   dbClient,
+	//	Properties: resources.DefaultPropertyTypeLS,
+	//}).SetupWithManager(mgr); err != nil {
+	//	setupLog.Error(err, "unable to create controller", "controller", "BillingInfoQuery")
+	//	os.Exit(1)
+	//}
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
