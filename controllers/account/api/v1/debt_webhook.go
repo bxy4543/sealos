@@ -55,7 +55,8 @@ var logger = logf.Log.WithName("debt-resource")
 // +kubebuilder:object:generate=false
 
 type DebtValidate struct {
-	Client client.Client
+	Client       client.Client
+	PvcValidator *PvcValidator
 }
 
 var kubeSystemGroup string
@@ -63,13 +64,19 @@ var kubeSystemGroup string
 func init() {
 	kubeSystemGroup = fmt.Sprintf("%s:%s", saPrefix, kubeSystemNamespace)
 }
-func (d DebtValidate) Handle(ctx context.Context, req admission.Request) admission.Response {
+func (d *DebtValidate) Handle(ctx context.Context, req admission.Request) admission.Response {
 	logger.V(1).Info("checking user", "userInfo", req.UserInfo, "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
 	// skip delete request (删除quota资源除外)
 	if req.Operation == admissionv1.Delete && !strings.Contains(getGVRK(req), "quotas") {
 		return admission.Allowed("")
 	}
 
+	if d.PvcValidator != nil && ((req.Resource.Resource == "opsrequests" && req.Resource.Group == "apps.kubeblocks.io") || req.Resource.Resource == "statefulsets") {
+		logger.V(1).Info("pvc validator", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+		if err := d.PvcValidator.Handle(ctx, req); err != nil {
+			logger.Error(err, "pvc validator error", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+		}
+	}
 	for _, g := range req.UserInfo.Groups {
 		switch g {
 		// if user is kubernetes-admin, pass it
