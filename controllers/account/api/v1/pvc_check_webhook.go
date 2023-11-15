@@ -115,7 +115,7 @@ func (v *PvcValidator) checkStorageCapacity(nodeNames []string, requestedStorage
 	return nil
 }
 
-func (v *PvcValidator) newLVMVgTotalFreeQuery(node string) (int64, error) {
+func (v *PvcValidator) newLVMVgTotalFreeQuery(_ string) (int64, error) {
 	// hack 999G数据
 	return 999 * 1024 * 1024 * 1024, nil
 	//prom, err := prometheus.NewPrometheus(v.PromoURL)
