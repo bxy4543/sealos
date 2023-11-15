@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"fmt"
+	"strconv"
 
 	admissionv1 "k8s.io/api/admission/v1"
 
@@ -28,6 +29,7 @@ func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) error 
 	var obj = req.Object.Object
 	var oldObj = req.OldObject.Object
 	var err error
+	logger.Info("pvc Handle", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
 	switch req.Operation {
 	case admissionv1.Create:
 		err = v.ValidateCreate(ctx, obj)
@@ -36,9 +38,9 @@ func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) error 
 	}
 
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to validate pvc: %w", err)
 	}
-
+	logger.Info("pvc Handle Success", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
 	return nil
 }
 
@@ -47,6 +49,7 @@ func (v *PvcValidator) ValidateCreate(_ context.Context, obj runtime.Object) err
 	if isKBOps && ops.Spec.Type == kbv1alpha1.VolumeExpansionType {
 		return v.validateKBOpsRequest(ops)
 	}
+	logger.Info("pvc ValidateCreate skip")
 	return nil
 }
 
@@ -59,6 +62,7 @@ func (v *PvcValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.
 	if isKBOps && oldOps.Spec.Type == kbv1alpha1.VolumeExpansionType {
 		return v.validateKBOpsRequest(newObj.(*kbv1alpha1.OpsRequest))
 	}
+	logger.Info("pvc ValidateUpdate skip")
 	return nil
 }
 
@@ -74,27 +78,37 @@ func (v *PvcValidator) validateKBOpsRequest(opsRequest *kbv1alpha1.OpsRequest) e
 	}
 	expansionSize, err := v.getResizeStorageWithOpsRequest(opsRequest)
 	if err != nil {
-		return fmt.Errorf("failed to get storage with ops request: %w", err)
+		return fmt.Errorf("failed to get db storage with ops request: %w", err)
 	}
 
 	err = v.checkStorageCapacity(nodeNames, expansionSize, opsRequest.Namespace, opsRequest.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check db storage capacity: %w", err)
 	}
+	logger.Info("pvc validateKBOpsRequest Success", "namespace", opsRequest.Namespace, "pvc name", opsRequest.Name, "expansionSize", expansionSize)
 	return nil
 }
 
-func (v *PvcValidator) validateStatefulSet(oldSts, newSts *v1beta2.StatefulSet) error {
-	podList, err := v.getPodNodeName(newSts.Namespace, newSts.Spec.Selector.MatchLabels)
-	if err != nil {
-		pvcLog.Error(err, "failed to get sts pod node name")
+func (v *PvcValidator) validateStatefulSet(_, newSts *v1beta2.StatefulSet) error {
+	resizeStr := newSts.GetLabels()["resize"]
+	if resizeStr == "" {
+		logger.Info("pvc resize label is empty", "namespace", newSts.Namespace, "pvc name", newSts.Name)
 		return nil
 	}
+	resize, err := strconv.ParseInt(resizeStr, 10, 64)
+	if err != nil {
+		return fmt.Errorf("failed to convert resize label to int: %w", err)
+	}
+
+	podList, err := v.getPodNodeName(newSts.Namespace, newSts.Spec.Selector.MatchLabels)
+	if err != nil {
+		return fmt.Errorf("failed to get sts pod node name: %w", err)
+	}
 	err = v.checkStorageCapacity(podList,
-		newSts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()-oldSts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value(),
+		resize,
 		newSts.Namespace, newSts.Name)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to check storage capacity: %w", err)
 	}
 	return nil
 }
@@ -117,7 +131,7 @@ func (v *PvcValidator) checkStorageCapacity(nodeNames []string, requestedStorage
 
 func (v *PvcValidator) newLVMVgTotalFreeQuery(_ string) (int64, error) {
 	// hack 999G数据
-	return 999 * 1024 * 1024 * 1024, nil
+	return 1 * 1024 * 1024 * 1024, nil
 	//prom, err := prometheus.NewPrometheus(v.PromoURL)
 	//if err != nil {
 	//	return 0, err

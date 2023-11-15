@@ -63,9 +63,8 @@ func (d *DebtValidate) Handle(ctx context.Context, req admission.Request) admiss
 	}
 
 	if d.PvcValidator != nil && ((req.Resource.Resource == "opsrequests" && req.Resource.Group == "apps.kubeblocks.io") || req.Resource.Resource == "statefulsets") {
-		logger.V(1).Info("pvc validator", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
 		if err := d.PvcValidator.Handle(ctx, req); err != nil {
-			logger.Error(err, "pvc validator error", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+			return admission.Denied(err.Error())
 		}
 	}
 	return admission.Allowed("")
