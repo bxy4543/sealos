@@ -1,9 +1,17 @@
 package v1
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"fmt"
+	"io"
+	"reflect"
 	"strconv"
+	"strings"
+
+	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
+	yaml2 "sigs.k8s.io/yaml"
 
 	admissionv1 "k8s.io/api/admission/v1"
 
@@ -26,15 +34,14 @@ type PvcValidator struct {
 }
 
 func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) error {
-	var obj = req.Object.Object
-	var oldObj = req.OldObject.Object
 	var err error
-	logger.Info("pvc Handle", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+	logger.Info("pvc Handle", "req.Object", req.Object.Object.GetObjectKind().GroupVersionKind())
 	switch req.Operation {
 	case admissionv1.Create:
-		err = v.ValidateCreate(ctx, obj)
+		err = v.ValidateCreate(ctx, req.Object.Object)
 	case admissionv1.Update:
-		err = v.ValidateUpdate(ctx, oldObj, obj)
+		logger.Info("pvc Handle Update", "req.OldObject", req.OldObject.Object.GetObjectKind().GroupVersionKind())
+		err = v.ValidateUpdate(ctx, req.Object, req.OldObject)
 	}
 
 	if err != nil {
@@ -53,22 +60,89 @@ func (v *PvcValidator) ValidateCreate(_ context.Context, obj runtime.Object) err
 	return nil
 }
 
-func (v *PvcValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.Object) error {
-	oldSts, isSts := oldObj.(*v1beta2.StatefulSet)
-	if isSts {
-		return v.validateStatefulSet(oldSts, newObj.(*v1beta2.StatefulSet))
+func DecodeCluster(obj runtime.RawExtension) (*kbv1alpha1.Cluster, error) {
+	reader := bytes.NewReader(obj.Raw)
+	cluster := &kbv1alpha1.Cluster{}
+	return cluster, unmarshalStrict(reader, cluster)
+}
+
+func DecodeOpsRequest(obj runtime.RawExtension) (*kbv1alpha1.OpsRequest, error) {
+	reader := bytes.NewReader(obj.Raw)
+	opsRequest := &kbv1alpha1.OpsRequest{}
+	return opsRequest, unmarshalStrict(reader, opsRequest)
+}
+
+func DecodeStatefulSet(obj runtime.RawExtension) (*v1beta2.StatefulSet, error) {
+	reader := bytes.NewReader(obj.Raw)
+	statefulSet := &v1beta2.StatefulSet{}
+	return statefulSet, unmarshalStrict(reader, statefulSet)
+}
+
+const nonStructPointerErrorFmt = "must be a struct pointer, got %T"
+
+func unmarshalStrict(r io.Reader, obj interface{}) (err error) {
+	if obj != nil && reflect.ValueOf(obj).Kind() != reflect.Pointer {
+		return fmt.Errorf(nonStructPointerErrorFmt, obj)
 	}
-	oldCluster, ok := oldObj.(*kbv1alpha1.Cluster)
-	if ok {
-		return v.validateKBCluster(oldCluster, newObj.(*kbv1alpha1.Cluster))
+	if v := reflect.ValueOf(obj).Elem(); v.Kind() != reflect.Struct {
+		return fmt.Errorf(nonStructPointerErrorFmt, obj)
 	}
 
-	oldOps, isKBOps := oldObj.(*kbv1alpha1.OpsRequest)
-	if isKBOps && oldOps.Spec.Type == kbv1alpha1.VolumeExpansionType {
-		return v.validateKBOpsRequest(newObj.(*kbv1alpha1.OpsRequest))
+	rd := utilyaml.NewYAMLReader(bufio.NewReader(r))
+	for {
+		buf, rerr := rd.Read()
+		if rerr == io.EOF {
+			break
+		}
+		if rerr != nil {
+			return rerr
+		}
+		if len(bytes.TrimSpace(buf)) == 0 {
+			continue
+		}
+		if err = yaml2.UnmarshalStrict(buf, obj); err == nil {
+			return nil
+		}
 	}
-	logger.Info("pvc ValidateUpdate skip")
-	return nil
+	if err != nil {
+		if strings.Contains(err.Error(), "json: unknown field") {
+			err = fmt.Errorf("document do not have corresponding struct %T", obj)
+		}
+	}
+	return
+}
+
+func (v *PvcValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.RawExtension) error {
+	switch newObj.Object.GetObjectKind().GroupVersionKind().Kind {
+	case "Cluster":
+		oldCluster, err := DecodeCluster(oldObj)
+		if err != nil {
+			return fmt.Errorf("failed to decode old cluster: %w", err)
+		}
+		newCluster, err := DecodeCluster(newObj)
+		if err != nil {
+			return fmt.Errorf("failed to decode new cluster: %w", err)
+		}
+		return v.validateKBCluster(oldCluster, newCluster)
+	case "OpsRequest":
+		newOps, err := DecodeOpsRequest(newObj)
+		if err != nil {
+			return fmt.Errorf("failed to decode new ops request: %w", err)
+		}
+		return v.validateKBOpsRequest(newOps)
+	case "StatefulSet":
+		oldSts, err := DecodeStatefulSet(oldObj)
+		if err != nil {
+			return fmt.Errorf("failed to decode old stateful set: %w", err)
+		}
+		newSts, err := DecodeStatefulSet(newObj)
+		if err != nil {
+			return fmt.Errorf("failed to decode new stateful set: %w", err)
+		}
+		return v.validateStatefulSet(oldSts, newSts)
+	default:
+		return fmt.Errorf("not support kind: %s", newObj.Object.GetObjectKind().GroupVersionKind().Kind)
+	}
 }
 
 func (v *PvcValidator) validateKBCluster(oldCluster, newCluster *kbv1alpha1.Cluster) error {
