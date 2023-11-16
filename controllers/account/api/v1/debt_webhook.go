@@ -56,7 +56,7 @@ type DebtValidate struct {
 //		kubeSystemGroup = fmt.Sprintf("%s:%s", saPrefix, kubeSystemNamespace)
 //	}
 func (d *DebtValidate) Handle(ctx context.Context, req admission.Request) admission.Response {
-	//logger.V(1).Info("checking user", "userInfo", req.UserInfo, "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+	logger.V(1).Info("checking user", "userInfo", req.UserInfo, "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
 	// skip delete request (删除quota资源除外)
 	if req.Operation == admissionv1.Delete && !strings.Contains(getGVRK(req), "quotas") {
 		return admission.Allowed("")
