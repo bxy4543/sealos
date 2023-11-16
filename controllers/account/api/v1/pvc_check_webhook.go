@@ -38,11 +38,11 @@ func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) error 
 	if req.Object.Object != nil {
 		return fmt.Errorf("req.Object.Object is not nil")
 	}
-	if req.Object.Object.GetObjectKind() != nil {
-		logger.Info("Object.GetObjectKind()", "req.Object", req.Object.Object.GetObjectKind().GroupVersionKind())
-	} else {
-		logger.Info("Object.GetObjectKind() is nil", "req.Object", req.Object.Object)
-	}
+	//if req.Object.Object.GetObjectKind() != nil {
+	//	logger.Info("Object.GetObjectKind()", "req.Object", req.Object.Object.GetObjectKind().GroupVersionKind())
+	//} else {
+	//}
+	logger.Info("Object.GetObjectKind()", "req.Object", req.Object.Object)
 	switch req.Operation {
 	case admissionv1.Create:
 		err = v.ValidateCreate(ctx, req.Object.Object)
