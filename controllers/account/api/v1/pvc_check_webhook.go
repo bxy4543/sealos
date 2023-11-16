@@ -7,8 +7,9 @@ import (
 	"fmt"
 	"io"
 	"reflect"
-	"strconv"
 	"strings"
+
+	"k8s.io/apimachinery/pkg/api/resource"
 
 	utilyaml "k8s.io/apimachinery/pkg/util/yaml"
 	yaml2 "sigs.k8s.io/yaml"
@@ -199,23 +200,25 @@ func (v *PvcValidator) validateKBOpsRequest(opsRequest *kbv1alpha1.OpsRequest) e
 	return nil
 }
 
-func (v *PvcValidator) validateStatefulSet(_, newSts *v1beta2.StatefulSet) error {
+func (v *PvcValidator) validateStatefulSet(oldSts, newSts *v1beta2.StatefulSet) error {
+	if len(oldSts.Spec.VolumeClaimTemplates) == 0 {
+		logger.Info("sts volume claim templates is empty", "namespace", oldSts.Namespace, "pvc name", oldSts.Name)
+		return nil
+	}
 	resizeStr := newSts.GetLabels()["resize"]
 	if resizeStr == "" {
 		logger.Info("pvc resize label is empty", "namespace", newSts.Namespace, "pvc name", newSts.Name)
 		return nil
 	}
-	resize, err := strconv.ParseInt(resizeStr, 10, 64)
-	if err != nil {
-		return fmt.Errorf("failed to convert resize label to int: %w", err)
-	}
+	resize := resource.MustParse(resizeStr)
+	expansionSize := resize.Value() - oldSts.Spec.VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()
 
 	podList, err := v.getPodNodeName(newSts.Namespace, newSts.Spec.Selector.MatchLabels)
 	if err != nil {
 		return fmt.Errorf("failed to get sts pod node name: %w", err)
 	}
 	err = v.checkStorageCapacity(podList,
-		resize,
+		expansionSize,
 		newSts.Namespace, newSts.Name)
 	if err != nil {
 		return fmt.Errorf("failed to check storage capacity: %w", err)
