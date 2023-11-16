@@ -153,6 +153,10 @@ func (v *PvcValidator) ValidateUpdate(kind string, oldObj, newObj runtime.RawExt
 }
 
 func (v *PvcValidator) validateKBCluster(oldCluster, newCluster *kbv1alpha1.Cluster) error {
+	pvcLog.Info("", "oldCluster", oldCluster, "newCluster", newCluster)
+	// old storage size && new storage size
+	logger.Info("oldCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage()", oldCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage())
+	logger.Info("newCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage()", newCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage())
 	expansionSize := newCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value() - oldCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()
 	if expansionSize < 0 {
 		return fmt.Errorf("cluster can not be scaled down")
