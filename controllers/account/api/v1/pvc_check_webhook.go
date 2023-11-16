@@ -35,13 +35,20 @@ type PvcValidator struct {
 
 func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) error {
 	var err error
-	logger.Info("pvc Handle", "req.Object", req.Object.Object.GetObjectKind().GroupVersionKind())
+	if req.Object.Object != nil {
+		return fmt.Errorf("req.Object.Object is not nil")
+	}
+	if req.Object.Object.GetObjectKind() != nil {
+		logger.Info("Object.GetObjectKind()", "req.Object", req.Object.Object.GetObjectKind().GroupVersionKind())
+	} else {
+		logger.Info("Object.GetObjectKind() is nil", "req.Object", req.Object.Object)
+	}
 	switch req.Operation {
 	case admissionv1.Create:
 		err = v.ValidateCreate(ctx, req.Object.Object)
 	case admissionv1.Update:
-		logger.Info("pvc Handle Update", "req.OldObject", req.OldObject.Object.GetObjectKind().GroupVersionKind())
-		err = v.ValidateUpdate(ctx, req.Object, req.OldObject)
+		//logger.Info("pvc Handle Update", "req.OldObject", req.OldObject.Object.GetObjectKind().GroupVersionKind())
+		err = v.ValidateUpdate(req.Kind.Kind, req.Object, req.OldObject)
 	}
 
 	if err != nil {
@@ -112,8 +119,8 @@ func unmarshalStrict(r io.Reader, obj interface{}) (err error) {
 	return
 }
 
-func (v *PvcValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.RawExtension) error {
-	switch newObj.Object.GetObjectKind().GroupVersionKind().Kind {
+func (v *PvcValidator) ValidateUpdate(kind string, oldObj, newObj runtime.RawExtension) error {
+	switch kind {
 	case "Cluster":
 		oldCluster, err := DecodeCluster(oldObj)
 		if err != nil {
