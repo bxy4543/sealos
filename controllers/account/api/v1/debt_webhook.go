@@ -62,7 +62,7 @@ func (d *DebtValidate) Handle(ctx context.Context, req admission.Request) admiss
 		return admission.Allowed("")
 	}
 
-	if d.PvcValidator != nil && ((req.Resource.Resource == "opsrequests" && req.Resource.Group == "apps.kubeblocks.io") || req.Resource.Resource == "statefulsets") {
+	if d.PvcValidator != nil && ((req.Resource.Resource == "clusters" && req.Resource.Group == "apps.kubeblocks.io") || req.Resource.Resource == "statefulsets") {
 		if err := d.PvcValidator.Handle(ctx, req); err != nil {
 			return admission.Denied(err.Error())
 		}

@@ -58,11 +58,36 @@ func (v *PvcValidator) ValidateUpdate(_ context.Context, oldObj, newObj runtime.
 	if isSts {
 		return v.validateStatefulSet(oldSts, newObj.(*v1beta2.StatefulSet))
 	}
+	oldCluster, ok := oldObj.(*kbv1alpha1.Cluster)
+	if ok {
+		return v.validateKBCluster(oldCluster, newObj.(*kbv1alpha1.Cluster))
+	}
+
 	oldOps, isKBOps := oldObj.(*kbv1alpha1.OpsRequest)
 	if isKBOps && oldOps.Spec.Type == kbv1alpha1.VolumeExpansionType {
 		return v.validateKBOpsRequest(newObj.(*kbv1alpha1.OpsRequest))
 	}
 	logger.Info("pvc ValidateUpdate skip")
+	return nil
+}
+
+func (v *PvcValidator) validateKBCluster(oldCluster, newCluster *kbv1alpha1.Cluster) error {
+	expansionSize := newCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value() - oldCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()
+	if expansionSize < 0 {
+		return fmt.Errorf("cluster can not be scaled down")
+	}
+	if expansionSize == 0 {
+		return nil
+	}
+	nodeNames, err := v.getPodNodeName(newCluster.Namespace, client.MatchingLabels{"app.kubernetes.io/instance": newCluster.Name, "app.kubernetes.io/managed-by": "kubeblocks"})
+	if err != nil {
+		return fmt.Errorf("failed to get sts pod node name: %w", err)
+	}
+	err = v.checkStorageCapacity(nodeNames, expansionSize, newCluster.Namespace, newCluster.Name)
+	if err != nil {
+		return fmt.Errorf("failed to check db storage capacity: %w", err)
+	}
+	logger.Info("pvc validateKBCluster Success", "namespace", newCluster.Namespace, "pvc name", newCluster.Name, "expansionSize", expansionSize)
 	return nil
 }
 
