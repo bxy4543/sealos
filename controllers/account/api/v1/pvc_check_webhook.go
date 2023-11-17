@@ -53,6 +53,8 @@ func CheckResourceShortageError(err error) error {
 	switch err.(type) {
 	case *ResourceShortageError:
 		return err
+	case nil:
+		return nil
 	default:
 		pvcLog.Error(err, "failed to check resource shortage capacity")
 		return nil
