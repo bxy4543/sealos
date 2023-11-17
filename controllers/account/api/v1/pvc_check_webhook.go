@@ -76,12 +76,8 @@ func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) error 
 	case admissionv1.Update:
 		err = v.ValidateUpdate(req.Kind.Kind, req.OldObject, req.Object)
 	}
-
-	if err != nil {
-		return fmt.Errorf("failed to validate pvc: %w", err)
-	}
-	pvcLog.Info("pvc Handle Success", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
-	return nil
+	pvcLog.Info("pvc Handle", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+	return err
 }
 
 func (v *PvcValidator) ValidateCreate(_ context.Context, obj runtime.Object) error {
