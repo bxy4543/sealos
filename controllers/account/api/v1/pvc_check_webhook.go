@@ -42,11 +42,11 @@ func (e *ResourceShortageError) Error() string {
 	return e.err.Error()
 }
 
-func NewResourceShortageError(err error) error {
+func NewResourceShortageError(err error) *ResourceShortageError {
 	if err != nil {
-		err = &ResourceShortageError{err: err}
+		return &ResourceShortageError{err: fmt.Errorf(code.MessageFormat, code.ResourceShortageError, err.Error())}
 	}
-	return fmt.Errorf(code.MessageFormat, code.ResourceShortageError, err.Error())
+	return nil
 }
 
 func CheckResourceShortageError(err error) error {
@@ -67,7 +67,7 @@ type PvcValidator struct {
 func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) error {
 	var err error
 	if req.Object.Object != nil {
-		pvcLog.Error(errors.New("request object is not nil"), "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+		pvcLog.Error(errors.New("request object is not nil"), "", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
 		return nil
 	}
 	switch req.Operation {
@@ -243,7 +243,7 @@ func (v *PvcValidator) checkStorageCapacity(nodeNames []string, requestedStorage
 
 		pvcLog.Info("check storage capacity", "namespace", namespace, "pvc name", name, "nodeName", nodeName, "residualStorage", residualStorage, "requestedStorage", requestedStorage)
 		if residualStorage < requestedStorage {
-			pvcLog.Error(fmt.Errorf("pvc can not be scaled up"), "namespace", namespace, "pvc name", name, "nodeName", nodeName, "residualStorage", residualStorage, "requestedStorage", requestedStorage)
+			pvcLog.Error(fmt.Errorf("pvc can not be scaled up"), "", "namespace", namespace, "pvc name", name, "nodeName", nodeName, "residualStorage", residualStorage, "requestedStorage", requestedStorage)
 			return NewResourceShortageError(fmt.Errorf("pvc %s/%s can not be scaled down", namespace, name))
 		}
 	}
