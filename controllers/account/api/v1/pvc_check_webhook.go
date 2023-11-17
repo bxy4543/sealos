@@ -4,10 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"reflect"
 	"strings"
+
+	"github.com/labring/sealos/controllers/pkg/code"
 
 	"k8s.io/apimachinery/pkg/api/resource"
 
@@ -29,6 +32,33 @@ import (
 
 var pvcLog = logf.Log.WithName("pvc-lvm-validating-webhook")
 
+const ResizeAnnotation = "deploy.cloud.sealos.io/resize"
+
+type ResourceShortageError struct {
+	err error
+}
+
+func (e *ResourceShortageError) Error() string {
+	return e.err.Error()
+}
+
+func NewResourceShortageError(err error) error {
+	if err != nil {
+		err = &ResourceShortageError{err: err}
+	}
+	return fmt.Errorf(code.MessageFormat, code.ResourceShortageError, err.Error())
+}
+
+func CheckResourceShortageError(err error) error {
+	switch err.(type) {
+	case *ResourceShortageError:
+		return err
+	default:
+		pvcLog.Error(err, "failed to check resource shortage capacity")
+		return nil
+	}
+}
+
 type PvcValidator struct {
 	client.Client
 	PromoURL string
@@ -37,25 +67,20 @@ type PvcValidator struct {
 func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) error {
 	var err error
 	if req.Object.Object != nil {
-		return fmt.Errorf("req.Object.Object is not nil")
+		pvcLog.Error(errors.New("request object is not nil"), "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+		return nil
 	}
-	//if req.Object.Object.GetObjectKind() != nil {
-	//	logger.Info("Object.GetObjectKind()", "req.Object", req.Object.Object.GetObjectKind().GroupVersionKind())
-	//} else {
-	//}
-	logger.Info("Object.GetObjectKind()", "req.Object", req.Object.Object)
 	switch req.Operation {
 	case admissionv1.Create:
 		err = v.ValidateCreate(ctx, req.Object.Object)
 	case admissionv1.Update:
-		//logger.Info("pvc Handle Update", "req.OldObject", req.OldObject.Object.GetObjectKind().GroupVersionKind())
 		err = v.ValidateUpdate(req.Kind.Kind, req.OldObject, req.Object)
 	}
 
 	if err != nil {
 		return fmt.Errorf("failed to validate pvc: %w", err)
 	}
-	logger.Info("pvc Handle Success", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
+	pvcLog.Info("pvc Handle Success", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
 	return nil
 }
 
@@ -64,7 +89,7 @@ func (v *PvcValidator) ValidateCreate(_ context.Context, obj runtime.Object) err
 	if isKBOps && ops.Spec.Type == kbv1alpha1.VolumeExpansionType {
 		return v.validateKBOpsRequest(ops)
 	}
-	logger.Info("pvc ValidateCreate skip")
+	pvcLog.Info("pvc ValidateCreate skip")
 	return nil
 }
 
@@ -150,10 +175,6 @@ func (v *PvcValidator) ValidateUpdate(kind string, oldObj, newObj runtime.RawExt
 }
 
 func (v *PvcValidator) validateKBCluster(oldCluster, newCluster *kbv1alpha1.Cluster) error {
-	pvcLog.Info("", "oldCluster", oldCluster, "newCluster", newCluster)
-	// old storage size && new storage size
-	pvcLog.Info("", "oldCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage()", oldCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage())
-	pvcLog.Info("", "newCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage()", newCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage())
 	expansionSize := newCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value() - oldCluster.Spec.ComponentSpecs[0].VolumeClaimTemplates[0].Spec.Resources.Requests.Storage().Value()
 	if expansionSize < 0 {
 		return fmt.Errorf("cluster can not be scaled down")
@@ -165,17 +186,13 @@ func (v *PvcValidator) validateKBCluster(oldCluster, newCluster *kbv1alpha1.Clus
 	if err != nil {
 		return fmt.Errorf("failed to get sts pod node name: %w", err)
 	}
-	err = v.checkStorageCapacity(nodeNames, expansionSize, newCluster.Namespace, newCluster.Name)
-	if err != nil {
-		return fmt.Errorf("failed to check db storage capacity: %w", err)
-	}
-	logger.Info("pvc validateKBCluster Success", "namespace", newCluster.Namespace, "pvc name", newCluster.Name, "expansionSize", expansionSize)
-	return nil
+	pvcLog.Info("pvc validateKBCluster", "namespace", newCluster.Namespace, "pvc name", newCluster.Name, "expansionSize", expansionSize)
+	return CheckResourceShortageError(v.checkStorageCapacity(nodeNames, expansionSize, newCluster.Namespace, newCluster.Name))
 }
 
 func (v *PvcValidator) validateKBOpsRequest(opsRequest *kbv1alpha1.OpsRequest) error {
 	if opsRequest.Spec.VolumeExpansionList == nil {
-		return fmt.Errorf("volume expansion list is nil")
+		return nil
 	}
 
 	//app.kubernetes.io/instance=test-name,app.kubernetes.io/managed-by=kubeblocks
@@ -188,22 +205,17 @@ func (v *PvcValidator) validateKBOpsRequest(opsRequest *kbv1alpha1.OpsRequest) e
 		return fmt.Errorf("failed to get db storage with ops request: %w", err)
 	}
 
-	err = v.checkStorageCapacity(nodeNames, expansionSize, opsRequest.Namespace, opsRequest.Name)
-	if err != nil {
-		return fmt.Errorf("failed to check db storage capacity: %w", err)
-	}
-	logger.Info("pvc validateKBOpsRequest Success", "namespace", opsRequest.Namespace, "pvc name", opsRequest.Name, "expansionSize", expansionSize)
-	return nil
+	pvcLog.Info("pvc validateKBOpsRequest", "namespace", opsRequest.Namespace, "pvc name", opsRequest.Name, "expansionSize", expansionSize)
+	return CheckResourceShortageError(v.checkStorageCapacity(nodeNames, expansionSize, opsRequest.Namespace, opsRequest.Name))
 }
 
 func (v *PvcValidator) validateStatefulSet(newSts *v1beta2.StatefulSet) error {
-	if len(newSts.Spec.VolumeClaimTemplates) == 0 {
-		logger.Info("sts volume claim templates is empty", "namespace", newSts.Namespace, "pvc name", newSts.Name)
+	if len(newSts.Spec.VolumeClaimTemplates) == 0 || newSts.GetLabels() == nil {
 		return nil
 	}
-	resizeStr := newSts.GetLabels()["resize"]
+	resizeStr := newSts.GetAnnotations()[ResizeAnnotation]
 	if resizeStr == "" {
-		logger.Info("pvc resize label is empty", "namespace", newSts.Namespace, "pvc name", newSts.Name)
+		pvcLog.Info("pvc resize annotation is empty", "namespace", newSts.Namespace, "pvc name", newSts.Name)
 		return nil
 	}
 	resize := resource.MustParse(resizeStr)
@@ -213,27 +225,26 @@ func (v *PvcValidator) validateStatefulSet(newSts *v1beta2.StatefulSet) error {
 	if err != nil {
 		return fmt.Errorf("failed to get sts pod node name: %w", err)
 	}
-	err = v.checkStorageCapacity(podList,
+	return CheckResourceShortageError(v.checkStorageCapacity(podList,
 		expansionSize,
-		newSts.Namespace, newSts.Name)
-	if err != nil {
-		return fmt.Errorf("failed to check storage capacity: %w", err)
-	}
-	return nil
+		newSts.Namespace, newSts.Name))
 }
 
 func (v *PvcValidator) checkStorageCapacity(nodeNames []string, requestedStorage int64, namespace, name string) error {
 	pvcLog.Info("check storage capacity", "namespace", namespace, "pvc name", name, "nodeNames", nodeNames, "requestedStorage", requestedStorage)
 	for _, nodeName := range nodeNames {
+		if nodeName == "" {
+			continue
+		}
 		residualStorage, err := v.newLVMVgTotalFreeQuery(nodeName)
 		if err != nil {
-			pvcLog.Error(err, "failed to get lvm vgs total free")
-			return nil
+			return fmt.Errorf("failed to get lvm vgs total free: %w", err)
 		}
+
 		pvcLog.Info("check storage capacity", "namespace", namespace, "pvc name", name, "nodeName", nodeName, "residualStorage", residualStorage, "requestedStorage", requestedStorage)
 		if residualStorage < requestedStorage {
-			pvcLog.Error(fmt.Errorf("failed to scaled down pvc"), "pvc can not be scaled up", "namespace", namespace, "pvc name", name, "nodeName", nodeName, "residualStorage", residualStorage, "requestedStorage", requestedStorage)
-			return fmt.Errorf("pvc %s/%s can not be scaled down", namespace, name)
+			pvcLog.Error(fmt.Errorf("pvc can not be scaled up"), "namespace", namespace, "pvc name", name, "nodeName", nodeName, "residualStorage", residualStorage, "requestedStorage", requestedStorage)
+			return NewResourceShortageError(fmt.Errorf("pvc %s/%s can not be scaled down", namespace, name))
 		}
 	}
 	return nil
