@@ -13,4 +13,5 @@ use (
 	./job/init
 	./pkg
 	./objectstorage
+	./pvccheck
 )

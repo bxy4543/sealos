@@ -1,0 +1,24 @@
+# permissions for end users to edit pvcchecks.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pvccheck-editor-role
+rules:
+- apiGroups:
+  - admission.sealos.io
+  resources:
+  - pvcchecks
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - admission.sealos.io
+  resources:
+  - pvcchecks/status
+  verbs:
+  - get

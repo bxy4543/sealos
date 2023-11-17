@@ -1,0 +1,6 @@
+apiVersion: admission.sealos.io/v1
+kind: PvcCheck
+metadata:
+  name: pvccheck-sample
+spec:
+  # TODO(user): Add fields here

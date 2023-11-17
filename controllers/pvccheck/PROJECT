@@ -1,0 +1,15 @@
+domain: sealos.io
+layout:
+- go.kubebuilder.io/v3
+projectName: pvccheck
+repo: github.com/labring/sealos
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  domain: sealos.io
+  group: admission
+  kind: PvcCheck
+  path: github.com/labring/sealos/api/v1
+  version: v1
+version: "3"
