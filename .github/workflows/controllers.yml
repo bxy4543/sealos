@@ -100,6 +100,7 @@ jobs:
           - { name: node, path: node }
           - { name: admission, path: admission }
           - { name: objectstorage, path: objectstorage }
+          - { name: pvccheck, path: pvccheck }
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -202,6 +203,7 @@ jobs:
           - { name: node, path: node }
           - { name: admission, path: admission }
           - { name: objectstorage, path: objectstorage }
+          - { name: pvccheck, path: pvccheck }
     steps:
       - name: Checkout
         uses: actions/checkout@v3

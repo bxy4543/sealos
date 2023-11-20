@@ -29,3 +29,5 @@ const (
 
 	IngressWebhookInternalError = 50000
 )
+
+const ResourceShortageError = 40400

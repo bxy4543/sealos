@@ -20,6 +20,8 @@ import (
 	"flag"
 	"os"
 
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
@@ -76,6 +78,13 @@ func main() {
 		setupLog.Error(err, "unable to start manager")
 		os.Exit(1)
 	}
+
+	promeURL := os.Getenv("PROM_URL")
+	if promeURL == "" {
+		setupLog.Error(err, "unable to get prometheus url")
+		os.Exit(1)
+	}
+	mgr.GetWebhookServer().Register("/validate-v1-sealos-pvc-check", &webhook.Admission{Handler: &admissionv1.PvcValidator{Client: mgr.GetClient(), PromoURL: promeURL}})
 
 	//+kubebuilder:scaffold:builder
 

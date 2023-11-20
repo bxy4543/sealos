@@ -31,6 +31,9 @@ spec:
         - /manager
         args:
         - --leader-elect
+        env:
+          - name: PROM_URL
+            value: "{{ .PROM_URL }}"
         image: controller:latest
         name: manager
         securityContext:

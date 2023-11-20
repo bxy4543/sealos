@@ -11,13 +11,34 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-
-FROM gcr.io/distroless/static:nonroot
-
-ARG TARGETARCH
-WORKDIR /
-USER 65532:65532
-
-COPY bin/controller-pvccheck-$TARGETARCH /manager
-
-ENTRYPOINT ["/manager"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+  - apiGroups:
+      - apps.kubeblocks.io
+    resources:
+      - opsrequests
+      - clusters
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - statefulsets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - ""
+    resources:
+      - persistentvolumeclaims
+    verbs:
+      - get
+      - list
+      - watch
