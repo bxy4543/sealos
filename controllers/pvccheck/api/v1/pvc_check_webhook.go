@@ -50,6 +50,14 @@ var pvcLog = logf.Log.WithName("pvc-lvm-validating-webhook")
 
 const ResizeAnnotation = "deploy.cloud.sealos.io/resize"
 
+// +kubebuilder:rbac:groups=core,resources=pods,verbs=get;list
+// +kubebuilder:rbac:groups=apps.kubeblocks.io,resources=opsrequests;clusters,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps.kubeblocks.io,resources=opsrequests/status;clusters/status,verbs=get
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims,verbs=get;list;watch
+// +kubebuilder:rbac:groups="",resources=persistentvolumeclaims/status,verbs=get
+// +kubebuilder:rbac:groups=apps,resources=statefulsets,verbs=get;list;watch
+// +kubebuilder:rbac:groups=apps,resources=statefulsets/status,verbs=get
+
 // +kubebuilder:webhook:path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups=apps.kubeblocks.io,resources=opsrequests;clusters,verbs=create;update,versions=v1,name=vpvccheck.kb.io,admissionReviewVersions=v1,sideEffects=None
 // +kubebuilder:webhook:path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups=apps,resources=statefulsets,verbs=create;update,versions=v1,name=vstatefulset.kb.io,admissionReviewVersions=v1,sideEffects=None
 // +kubebuilder:webhook:path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups="",resources=persistentvolumeclaims,verbs=create;update,versions=v1,name=vpvc.kb.io,admissionReviewVersions=v1,sideEffects=None
@@ -167,7 +175,7 @@ func (v *PvcValidator) ValidateUpdate(kind string, oldObj, newObj runtime.RawExt
 		}
 		return v.validateStatefulSet(newSts)
 	default:
-		return fmt.Errorf("not support kind: %s", newObj.Object.GetObjectKind().GroupVersionKind().Kind)
+		return nil
 	}
 }
 

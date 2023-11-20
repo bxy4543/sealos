@@ -113,17 +113,23 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
+  creationTimestamp: null
   name: pvccheck-manager-role
 rules:
 - apiGroups:
-  - apps.kubeblocks.io
+  - ""
   resources:
-  - opsrequests
-  - clusters
+  - persistentvolumeclaims
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - ""
+  resources:
+  - persistentvolumeclaims/status
+  verbs:
+  - get
 - apiGroups:
   - apps
   resources:
@@ -133,13 +139,34 @@ rules:
   - list
   - watch
 - apiGroups:
-  - ""
+  - apps
   resources:
-  - persistentvolumeclaims
+  - statefulsets/status
+  verbs:
+  - get
+- apiGroups:
+  - apps.kubeblocks.io
+  resources:
+  - clusters
+  - opsrequests
   verbs:
   - get
   - list
   - watch
+- apiGroups:
+  - apps.kubeblocks.io
+  resources:
+  - clusters/status
+  - opsrequests/status
+  verbs:
+  - get
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
