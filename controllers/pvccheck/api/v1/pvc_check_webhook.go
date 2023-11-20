@@ -61,11 +61,11 @@ type PvcValidator struct {
 }
 
 func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) admission.Response {
-	var err error
 	if req.Object.Object != nil {
 		pvcLog.Error(errors.New("request object is not nil"), "", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
 		return admission.Allowed("")
 	}
+	var err error
 	switch req.Operation {
 	case admissionv1.Delete:
 		return admission.Allowed("")
@@ -74,8 +74,11 @@ func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) admiss
 	case admissionv1.Update:
 		err = v.ValidateUpdate(req.Kind.Kind, req.OldObject, req.Object)
 	}
+	if err != nil {
+		return admission.Denied(err.Error())
+	}
 	pvcLog.Info("pvc Handle", "req.Namespace", req.Namespace, "req.Name", req.Name, "req.gvrk", getGVRK(req), "req.Operation", req.Operation)
-	return admission.Denied(err.Error())
+	return admission.Allowed("")
 }
 
 func (v *PvcValidator) ValidateCreate(_ context.Context, obj runtime.Object) error {
