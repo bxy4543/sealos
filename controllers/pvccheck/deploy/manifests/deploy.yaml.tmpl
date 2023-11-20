@@ -281,7 +281,7 @@ spec:
         env:
         - name: PROM_URL
           value: '{{ .PROM_URL }}'
-        image: controller:latest
+        image: ghcr.io/labring/sealos-pvccheck-controller:latest
         livenessProbe:
           httpGet:
             path: /healthz
