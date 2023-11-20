@@ -20,9 +20,8 @@ webhooks:
     apiVersions:
     - v1
     operations:
-    - get
-    - list
-    - watch
+    - CREATE
+    - UPDATE
     resources:
     - opsrequests
     - clusters
@@ -42,9 +41,8 @@ webhooks:
     apiVersions:
     - v1
     operations:
-    - get
-    - list
-    - watch
+    - CREATE
+    - UPDATE
     resources:
     - statefulsets
   sideEffects: None
@@ -63,9 +61,8 @@ webhooks:
     apiVersions:
     - v1
     operations:
-    - get
-    - list
-    - watch
+    - CREATE
+    - UPDATE
     resources:
     - persistentvolumeclaims
   sideEffects: None

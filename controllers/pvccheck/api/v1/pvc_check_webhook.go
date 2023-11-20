@@ -50,9 +50,9 @@ var pvcLog = logf.Log.WithName("pvc-lvm-validating-webhook")
 
 const ResizeAnnotation = "deploy.cloud.sealos.io/resize"
 
-// +kubebuilder:webhook:verbs=get;list;watch,path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups=apps.kubeblocks.io,resources=opsrequests;clusters,versions=v1,name=vpvccheck.kb.io,admissionReviewVersions=v1,sideEffects=None
-// +kubebuilder:webhook:verbs=get;list;watch,path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups=apps,resources=statefulsets,versions=v1,name=vstatefulset.kb.io,admissionReviewVersions=v1,sideEffects=None
-// +kubebuilder:webhook:verbs=get;list;watch,path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups="",resources=persistentvolumeclaims,versions=v1,name=vpvc.kb.io,admissionReviewVersions=v1,sideEffects=None
+// +kubebuilder:webhook:path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups=apps.kubeblocks.io,resources=opsrequests;clusters,verbs=create;update,versions=v1,name=vpvccheck.kb.io,admissionReviewVersions=v1,sideEffects=None
+// +kubebuilder:webhook:path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups=apps,resources=statefulsets,verbs=create;update,versions=v1,name=vstatefulset.kb.io,admissionReviewVersions=v1,sideEffects=None
+// +kubebuilder:webhook:path=/validate-v1-sealos-pvc-check,mutating=false,failurePolicy=ignore,groups="",resources=persistentvolumeclaims,verbs=create;update,versions=v1,name=vpvc.kb.io,admissionReviewVersions=v1,sideEffects=None
 // +kubebuilder:object:generate=false
 
 type PvcValidator struct {
@@ -67,6 +67,8 @@ func (v *PvcValidator) Handle(ctx context.Context, req admission.Request) admiss
 		return admission.Allowed("")
 	}
 	switch req.Operation {
+	case admissionv1.Delete:
+		return admission.Allowed("")
 	case admissionv1.Create:
 		err = v.ValidateCreate(ctx, req.Object.Object)
 	case admissionv1.Update:
