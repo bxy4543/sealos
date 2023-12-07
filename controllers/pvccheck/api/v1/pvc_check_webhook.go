@@ -26,6 +26,8 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/labring/sealos/controllers/pkg/prometheus"
+
 	"github.com/labring/sealos/controllers/pkg/utils"
 
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -255,20 +257,18 @@ func (v *PvcValidator) checkStorageCapacity(nodeNames []string, requestedStorage
 	return nil
 }
 
-func (v *PvcValidator) newLVMVgTotalFreeQuery(_ string) (int64, error) {
-	// hack 999G数据
-	return 1 * 1024 * 1024 * 1024, nil
-	//prom, err := prometheus.NewPrometheus(v.PromoURL)
-	//if err != nil {
-	//	return 0, err
-	//}
-	//residualSize, err := prom.QueryLvmVgsTotalFree(prometheus.QueryParams{
-	//	Node: node,
-	//})
-	//if err != nil {
-	//	return 0, fmt.Errorf("failed to query lvm vgs total free: %w", err)
-	//}
-	//return int64(residualSize), nil
+func (v *PvcValidator) newLVMVgTotalFreeQuery(node string) (int64, error) {
+	prom, err := prometheus.NewPrometheus(v.PromoURL)
+	if err != nil {
+		return 0, err
+	}
+	residualSize, err := prom.QueryLvmVgsTotalFree(prometheus.QueryParams{
+		Node: node,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to query lvm vgs total free: %w", err)
+	}
+	return int64(residualSize), nil
 }
 
 func (v *PvcValidator) getPodNodeName(namespace string, matchLabels client.MatchingLabels) ([]string, error) {
