@@ -444,7 +444,10 @@ func (r *DebtReconciler) sendNotice(ctx context.Context, user string, oweAmount 
 			return err
 		}
 	}
-	return r.sendSMSNotice(user, oweAmount, noticeType)
+	if noticeType == ImminentDeletionNotice || noticeType == FinalDeletionNotice {
+		return r.sendSMSNotice(user, oweAmount, noticeType)
+	}
+	return nil
 }
 
 func (r *DebtReconciler) sendWarningNotice(_ context.Context, _ string, _ int64, _ []string) error {
