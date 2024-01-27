@@ -158,6 +158,8 @@ NormalPeriod -> WarningPeriod -> ApproachingDeletionPeriod -> ImmediateDeletePer
 欠费后到完全删除的总周期=WarningPeriodSeconds+ApproachingDeletionPeriodSeconds+ImmediateDeletePeriodSeconds+FinalDeletePeriodSeconds
 */
 func (r *DebtReconciler) reconcileDebtStatus(ctx context.Context, debt *accountv1.Debt, account *accountv1.Account, userNamespaceList []string) error {
+	//区分充值用户和非充值用户：
+	isAccountUser := account.Status.Balance > 10*BaseUnit
 	oweamount := account.Status.Balance - account.Status.DeductionBalance
 	//更新间隔秒钟数
 	updateIntervalSeconds := time.Now().UTC().Unix() - debt.Status.LastUpdateTimestamp
@@ -248,9 +250,14 @@ func (r *DebtReconciler) reconcileDebtStatus(ctx context.Context, debt *accountv
 			//TODO 撤销最终删除消息通知
 			break
 		}
-		//上次更新时间小于最终删除时间, 且欠费不大于总金额的两倍
-		if updateIntervalSeconds < DebtConfig[accountv1.FinalDeletionPeriod] {
-			return nil
+		if isAccountUser {
+			if updateIntervalSeconds < DebtConfig[accountv1.FinalDeletionPeriod] {
+				return nil
+			}
+		} else {
+			if updateIntervalSeconds < DebtConfig[accountv1.NonRechargeUserCleanPeriod] {
+				return nil
+			}
 		}
 		// TODO 暂时只暂停资源，后续会添加真正删除全部资源逻辑, 或直接删除namespace
 		update = SetDebtStatus(debt, accountv1.FinalDeletionPeriod)
@@ -440,12 +447,14 @@ func (r *DebtReconciler) sendNotice(ctx context.Context, user string, oweAmount 
 	return r.sendSMSNotice(user, oweAmount, noticeType)
 }
 
-func (r *DebtReconciler) sendWarningNotice(ctx context.Context, user string, oweAmount int64, namespaces []string) error {
-	return r.sendNotice(ctx, user, oweAmount, WarningNotice, namespaces)
+func (r *DebtReconciler) sendWarningNotice(_ context.Context, _ string, _ int64, _ []string) error {
+	//return r.sendNotice(ctx, user, oweAmount, WarningNotice, namespaces)
+	return nil
 }
 
-func (r *DebtReconciler) sendApproachingDeletionNotice(ctx context.Context, user string, oweAmount int64, namespaces []string) error {
-	return r.sendNotice(ctx, user, oweAmount, ApproachingDeletionNotice, namespaces)
+func (r *DebtReconciler) sendApproachingDeletionNotice(_ context.Context, _ string, _ int64, _ []string) error {
+	//return r.sendNotice(ctx, user, oweAmount, ApproachingDeletionNotice, namespaces)
+	return nil
 }
 
 func (r *DebtReconciler) sendImminentDeletionNotice(ctx context.Context, user string, oweAmount int64, namespaces []string) error {
@@ -563,6 +572,7 @@ func setDefaultDebtPeriodWaitSecond() {
 	DebtConfig[accountv1.ApproachingDeletionPeriod] = env.GetInt64EnvWithDefault(string(accountv1.ApproachingDeletionPeriod), 4*accountv1.DaySecond)
 	DebtConfig[accountv1.ImminentDeletionPeriod] = env.GetInt64EnvWithDefault(string(accountv1.ImminentDeletionPeriod), 3*accountv1.DaySecond)
 	DebtConfig[accountv1.FinalDeletionPeriod] = env.GetInt64EnvWithDefault(string(accountv1.FinalDeletionPeriod), 7*accountv1.DaySecond)
+	DebtConfig[accountv1.NonRechargeUserCleanPeriod] = env.GetInt64EnvWithDefault(string(accountv1.NonRechargeUserCleanPeriod), 7*accountv1.DaySecond)
 }
 
 type OnlyCreatePredicate struct {

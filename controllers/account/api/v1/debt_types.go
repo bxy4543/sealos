@@ -26,11 +26,12 @@ const (
 	DebtStatusMedium DebtStatusType = "Medium"
 	DebtStatusLarge  DebtStatusType = "Large"
 
-	NormalPeriod              DebtStatusType = "NormalPeriod"
-	WarningPeriod             DebtStatusType = "WarningPeriod"
-	ApproachingDeletionPeriod DebtStatusType = "ApproachingDeletionPeriod"
-	ImminentDeletionPeriod    DebtStatusType = "ImminentDeletionPeriod"
-	FinalDeletionPeriod       DebtStatusType = "FinalDeletionPeriod"
+	NormalPeriod               DebtStatusType = "NormalPeriod"
+	WarningPeriod              DebtStatusType = "WarningPeriod"
+	ApproachingDeletionPeriod  DebtStatusType = "ApproachingDeletionPeriod"
+	ImminentDeletionPeriod     DebtStatusType = "ImminentDeletionPeriod"
+	FinalDeletionPeriod        DebtStatusType = "FinalDeletionPeriod"
+	NonRechargeUserCleanPeriod DebtStatusType = "NonRechargeUserCleanPeriod"
 
 	PreWarningPeriod DebtStatusType = "PreWarningPeriod"
 	SuspendPeriod    DebtStatusType = "SuspendPeriod"
