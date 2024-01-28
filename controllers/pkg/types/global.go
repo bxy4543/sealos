@@ -106,6 +106,19 @@ func (RegionUserCr) TableName() string {
 	return "UserCr"
 }
 
+type InviteReward struct {
+	PaymentID     string    `gorm:"type:text;primary_key"`
+	UserUID       uuid.UUID `gorm:"column:userUid;type:uuid;not null"`
+	CreatedAt     time.Time `gorm:"type:timestamp(3) with time zone;default:current_timestamp();not null"`
+	PaymentAmount int64     `gorm:"type:bigint;not null"`
+	RewardAmount  int64     `gorm:"type:bigint;not null"`
+	InviteFrom    uuid.UUID `gorm:"column:inviteFrom;type:uuid;not null"`
+}
+
+func (InviteReward) TableName() string {
+	return "InviteReward"
+}
+
 type TransferAccountV1 struct {
 	//RealUser   RealUser
 	RegionUID       uuid.UUID `gorm:"column:regionUid;type:uuid;not null"`
@@ -161,6 +174,8 @@ type PaymentRaw struct {
 	Remark     string `gorm:"type:text"`
 	Message    string `gorm:"type:text;not null"`
 }
+
+var Invited = "invited"
 
 func (ErrorPaymentCreate) TableName() string {
 	return "ErrorPaymentCreate"

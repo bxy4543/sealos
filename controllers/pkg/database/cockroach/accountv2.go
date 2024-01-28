@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"os"
 	"path/filepath"
 	"time"
@@ -303,6 +304,54 @@ func (g *Cockroach) CreateErrorPaymentCreate(payment types.Payment, errorMsg str
 	return nil
 }
 
+func (g *Cockroach) GetInviteReward(owner string) ([]types.InviteReward, error) {
+	userUID, err := g.GetUserUID(&types.UserQueryOpts{ID: owner})
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user uid: %v", err)
+	}
+	var inviteRewards []types.InviteReward
+	if err := g.DB.Where(types.InviteReward{InviteFrom: userUID}).Find(&inviteRewards).Error; err != nil {
+		return nil, fmt.Errorf("failed to get invite reward: %v", err)
+	}
+	return inviteRewards, nil
+}
+
+func (g *Cockroach) InviteRewardHandler(owner string, userList []string, ratio float64) (int64, error) {
+	inviteUserUID, err := g.GetUserUID(&types.UserQueryOpts{ID: owner})
+	if err != nil {
+		return 0, fmt.Errorf("failed to get user uid: %v", err)
+	}
+	allAmount := int64(0)
+	for i := range userList {
+		payments, err := g.getNotInvitedPayment(&types.UserQueryOpts{ID: userList[i]})
+		if err != nil {
+			return 0, fmt.Errorf("failed to get payment: %v", err)
+		}
+		for i := range payments {
+			rewardAmount := int64(math.Ceil(float64(payments[i].Amount) * ratio))
+			allAmount += rewardAmount
+			payments[i].Remark = types.Invited
+			if err := g.DB.Save(&payments[i]).Error; err != nil {
+				return 0, fmt.Errorf("failed to save payment: %v", err)
+			}
+			if err := g.DB.Save(&types.InviteReward{
+				PaymentID:     payments[i].ID,
+				UserUID:       payments[i].UserUID,
+				InviteFrom:    inviteUserUID,
+				PaymentAmount: payments[i].Amount,
+				RewardAmount:  rewardAmount,
+			}).Error; err != nil {
+				return 0, fmt.Errorf("failed to save invite reward: %v", err)
+			}
+		}
+	}
+	err = g.AddBalance(&types.UserQueryOpts{UID: inviteUserUID}, int64(math.Ceil(float64(allAmount)*ratio)))
+	if err != nil {
+		return 0, fmt.Errorf("failed to add balance: %v", err)
+	}
+	return allAmount, nil
+}
+
 // TransferAccountV1 account indicates the CRD value of the original account
 func (g *Cockroach) TransferAccountV1(owner string, account *types.Account) (*types.Account, error) {
 	//transfer := &types.TransferAccountV1{}
@@ -494,6 +543,18 @@ func (g *Cockroach) GetPayment(ops *types.UserQueryOpts, startTime, endTime time
 	return payment, nil
 }
 
+func (g *Cockroach) getNotInvitedPayment(ops *types.UserQueryOpts) ([]types.Payment, error) {
+	userUID, err := g.GetUserUID(ops)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get user uid: %v", err)
+	}
+	var payment []types.Payment
+	if err := g.DB.Where(types.Payment{PaymentRaw: types.PaymentRaw{UserUID: userUID}}).Where("remark <> ?", types.Invited).Find(&payment).Error; err != nil {
+		return nil, fmt.Errorf("failed to get payment: %w", err)
+	}
+	return payment, nil
+}
+
 func (g *Cockroach) SetPaymentInvoice(ops *types.UserQueryOpts, paymentIDList []string) error {
 	userUID, err := g.GetUserUID(ops)
 	if err != nil {
@@ -672,7 +733,7 @@ func NewCockRoach(globalURI, localURI string) (*Cockroach, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to encrypt zero value")
 	}
-	if err := CreateTableIfNotExist(db, types.Account{}, types.ErrorAccountCreate{}, types.ErrorPaymentCreate{}, types.Payment{}, types.Transfer{}); err != nil {
+	if err := CreateTableIfNotExist(db, types.Account{}, types.ErrorAccountCreate{}, types.ErrorPaymentCreate{}, types.Payment{}, types.Transfer{}, types.InviteReward{}); err != nil {
 		return nil, err
 	}
 	cockroach := &Cockroach{DB: db, Localdb: localdb, ZeroAccount: &types.Account{EncryptBalance: *newEncryptBalance, EncryptDeductionBalance: *newEncryptDeductionBalance, Balance: baseBalance, DeductionBalance: 0}}

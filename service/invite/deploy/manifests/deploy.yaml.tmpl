@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: invite-service
+  namespace: account-system
+  labels:
+    cloud.sealos.io/app-deploy-manager: invite-service
+spec:
+  ports:
+    - port: 2334
+      targetPort: 2334
+  selector:
+    app: account-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: invite-service
+  namespace: account-system
+  annotations:
+    originImageName: ghcr.io/labring/sealos-invite-service:latest
+    deploy.cloud.sealos.io/minReplicas: '1'
+    deploy.cloud.sealos.io/maxReplicas: '1'
+  labels:
+    cloud.sealos.io/app-deploy-manager: invite-service
+    app: invite-service
+spec:
+  replicas: 1
+  revisionHistoryLimit: 1
+  selector:
+    matchLabels:
+      app: invite-service
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  template:
+    metadata:
+      labels:
+        app: invite-service
+    spec:
+      containers:
+        - name: invite-service
+          image: ghcr.io/labring/sealos-invite-service:latest
+          envFrom:
+          - configMapRef:
+              name: account-manager-env
+          resources:
+            requests:
+              cpu: 50m
+              memory: 25Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          ports:
+            - containerPort: 2334
+          imagePullPolicy: Always
+          volumeMounts: []
+      volumes: []
