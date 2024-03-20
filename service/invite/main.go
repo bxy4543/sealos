@@ -25,7 +25,7 @@ func main() {
 
 	r.Use(authenticateMiddleware())
 
-	ck, err := cockroach.NewCockRoach("", "")
+	ck, err := cockroach.NewCockRoach(os.Getenv("GLOBAL_COCKROACH_URI"), os.Getenv("LOCAL_COCKROACH_URI"))
 	if err != nil {
 		fmt.Printf("failed to new CockRoach DB: %v", err)
 		os.Exit(1)

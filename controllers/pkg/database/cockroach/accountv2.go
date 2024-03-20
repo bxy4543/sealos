@@ -703,6 +703,9 @@ func (g *Cockroach) TransferAccount(from, to *types.UserQueryOpts, amount int64)
 }
 
 func NewCockRoach(globalURI, localURI string) (*Cockroach, error) {
+	if globalURI == "" || localURI == "" {
+		return nil, fmt.Errorf("empty global or local uri")
+	}
 	dbLogger := logger.New(log.New(os.Stdout, "\r\n", log.LstdFlags), logger.Config{
 		SlowThreshold:             200 * time.Millisecond,
 		LogLevel:                  logger.Error,
