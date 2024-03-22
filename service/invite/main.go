@@ -53,13 +53,11 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("bind json error : %v", err)})
 				return
 			}
-			var tx *sync.Mutex
-			var ok bool
-			tx, ok = inviteMutexMap[inviteRewardReq.UID]
-
+			_, ok := inviteMutexMap[inviteRewardReq.UID]
 			if !ok {
 				inviteMutexMap[inviteRewardReq.UID] = &sync.Mutex{}
 			}
+			tx := inviteMutexMap[inviteRewardReq.UID]
 			if !tx.TryLock() {
 				fmt.Printf("try lock error : %v", err)
 				c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("try lock error : %v", err)})
