@@ -93,7 +93,7 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("bind json error : %v", err)})
 				return
 			}
-			userID := inviteRewardReq.UID
+			userID := inviteRewardReq.ID
 
 			rewardList, err := ck.GetInviteReward(userID)
 			if err != nil {
