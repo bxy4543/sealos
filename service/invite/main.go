@@ -6,6 +6,8 @@ import (
 	"os"
 	"sync"
 
+	"github.com/labring/sealos/controllers/pkg/utils/env"
+
 	"github.com/labring/sealos/controllers/pkg/database/cockroach"
 
 	"github.com/gin-gonic/gin"
@@ -14,6 +16,7 @@ import (
 var GROUP = "/account/v1alpha1"
 
 type InviteReward struct {
+	ID    string   `json:"id"`
 	UID   string   `json:"uid"`
 	Users []string `json:"users"`
 }
@@ -68,6 +71,7 @@ func main() {
 			if err != nil {
 				fmt.Printf("failed to invite reward handler: %v", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to invite reward handler: %v", err)})
+				return
 			}
 			c.JSON(http.StatusOK, gin.H{"amount": amount})
 		}).
@@ -112,7 +116,7 @@ func BindInviteReward(c *gin.Context) (*InviteReward, error) {
 	if err != nil {
 		return nil, fmt.Errorf("bind json error : %v", err)
 	}
-	if newInviteReward.UID == "" {
+	if newInviteReward.UID == "" && newInviteReward.ID == "" {
 		return nil, fmt.Errorf("uid is required")
 	}
 	if len(newInviteReward.Users) == 0 {
@@ -126,7 +130,7 @@ const secretToken = "thXKmZXKSwX22TkB9Fonx"
 func authenticateMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")
-		if token != "Bearer "+secretToken {
+		if token != "Bearer "+env.GetEnvWithDefault("SECRET_TOKEN", secretToken) {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
 			c.Abort()
 			return
