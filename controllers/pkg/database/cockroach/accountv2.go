@@ -304,8 +304,8 @@ func (g *Cockroach) CreateErrorPaymentCreate(payment types.Payment, errorMsg str
 	return nil
 }
 
-func (g *Cockroach) GetInviteReward(owner string) ([]types.InviteReward, error) {
-	userUID, err := g.GetUserUID(&types.UserQueryOpts{ID: owner})
+func (g *Cockroach) GetInviteReward(userID string) ([]types.InviteReward, error) {
+	userUID, err := g.GetUserUID(&types.UserQueryOpts{ID: userID})
 	if err != nil {
 		return nil, fmt.Errorf("failed to get user uid: %v", err)
 	}
@@ -316,8 +316,8 @@ func (g *Cockroach) GetInviteReward(owner string) ([]types.InviteReward, error) 
 	return inviteRewards, nil
 }
 
-func (g *Cockroach) InviteRewardHandler(owner string, userList []string, ratio float64) (int64, error) {
-	inviteUserUID, err := g.GetUserUID(&types.UserQueryOpts{ID: owner})
+func (g *Cockroach) InviteRewardHandler(userID string, userList []string, ratio float64) (int64, error) {
+	inviteUserUID, err := g.GetUserUID(&types.UserQueryOpts{ID: userID})
 	if err != nil {
 		return 0, fmt.Errorf("failed to get user uid: %v", err)
 	}

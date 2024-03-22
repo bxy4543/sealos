@@ -28,6 +28,8 @@ func main() {
 
 	r.Use(authenticateMiddleware())
 
+	ratio := env.GetFloat64EnvWithDefault("RATIO", 0.1)
+
 	ck, err := cockroach.NewCockRoach(os.Getenv("GLOBAL_COCKROACH_URI"), os.Getenv("LOCAL_COCKROACH_URI"))
 	if err != nil {
 		fmt.Printf("failed to new CockRoach DB: %v", err)
@@ -53,11 +55,11 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("bind json error : %v", err)})
 				return
 			}
-			_, ok := inviteMutexMap[inviteRewardReq.UID]
+			_, ok := inviteMutexMap[inviteRewardReq.ID]
 			if !ok {
-				inviteMutexMap[inviteRewardReq.UID] = &sync.Mutex{}
+				inviteMutexMap[inviteRewardReq.ID] = &sync.Mutex{}
 			}
-			tx := inviteMutexMap[inviteRewardReq.UID]
+			tx := inviteMutexMap[inviteRewardReq.ID]
 			if !tx.TryLock() {
 				fmt.Printf("try lock error : %v", err)
 				c.JSON(http.StatusConflict, gin.H{"error": fmt.Sprintf("try lock error : %v", err)})
@@ -65,7 +67,7 @@ func main() {
 			}
 			defer tx.Unlock()
 
-			amount, err := ck.InviteRewardHandler(inviteRewardReq.UID, inviteRewardReq.Users, 0.1)
+			amount, err := ck.InviteRewardHandler(inviteRewardReq.ID, inviteRewardReq.Users, ratio)
 			if err != nil {
 				fmt.Printf("failed to invite reward handler: %v", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to invite reward handler: %v", err)})
@@ -91,15 +93,15 @@ func main() {
 				c.JSON(http.StatusBadRequest, gin.H{"error": fmt.Sprintf("bind json error : %v", err)})
 				return
 			}
-			owner := inviteRewardReq.UID
+			userID := inviteRewardReq.UID
 
-			rewardList, err := ck.GetInviteReward(owner)
+			rewardList, err := ck.GetInviteReward(userID)
 			if err != nil {
 				fmt.Printf("get reward list error : %v", err)
 				c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("get reward list error : %v", err)})
 				return
 			}
-			fmt.Printf("owner: %s, rewardList: %v\n", owner, rewardList)
+			fmt.Printf("userID: %s, rewardList: %v\n", userID, rewardList)
 			c.JSON(http.StatusOK, gin.H{"rewardList": rewardList})
 		})
 	if err := r.Run(":2334"); err != nil {

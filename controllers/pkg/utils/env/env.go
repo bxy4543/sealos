@@ -36,6 +36,15 @@ func GetInt64EnvWithDefault(key string, defaultValue int64) int64 {
 	return defaultValue
 }
 
+func GetFloat64EnvWithDefault(key string, defaultValue float64) float64 {
+	if env, ok := os.LookupEnv(key); ok && env != "" {
+		if value, err := strconv.ParseFloat(env, 64); err == nil {
+			return value
+		}
+	}
+	return defaultValue
+}
+
 func CheckEnvSetting(keys []string) error {
 	for _, key := range keys {
 		if val, ok := os.LookupEnv(key); !ok || val == "" {
