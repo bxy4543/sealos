@@ -345,7 +345,7 @@ func (g *Cockroach) InviteRewardHandler(userID string, userList []string, ratio 
 			}
 		}
 	}
-	err = g.AddBalance(&types.UserQueryOpts{UID: inviteUserUID}, int64(math.Ceil(float64(allAmount)*ratio)))
+	err = g.AddBalance(&types.UserQueryOpts{UID: inviteUserUID}, allAmount)
 	if err != nil {
 		return 0, fmt.Errorf("failed to add balance: %v", err)
 	}
