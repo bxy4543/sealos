@@ -83,16 +83,33 @@ func (d *DebtValidate) Handle(ctx context.Context, req admission.Request) admiss
 		}
 
 		var oldPVC corev1.PersistentVolumeClaim
-		if err := json.Unmarshal(req.OldObject.Raw, &oldPVC); err != nil {
-			logger.Error(err, "could not unmarshal old PVC")
+		if req.OldObject.Raw != nil {
+			if err := json.Unmarshal(req.OldObject.Raw, &oldPVC); err != nil {
+				logger.Error(err, "could not unmarshal old PVC")
+				return admission.Allowed("")
+			}
+		}
+		oldPVC.Annotations = nil
+		oldPVC.Labels = nil
+		pvc.Annotations = nil
+		pvc.Labels = nil
+		oldPVCDa, err := json.Marshal(oldPVC)
+		if err != nil {
+			logger.Error(err, "could not marshal old PVC")
 			return admission.Allowed("")
 		}
+		pvcDa, err := json.Marshal(pvc)
+		if err != nil {
+			logger.Error(err, "could not marshal PVC")
+			return admission.Allowed("")
+		}
+
 		fmt.Printf("PVC %s/%s modified\n", pvc.Namespace, pvc.Name)
 		fmt.Printf("Modified by user: %s\n", req.UserInfo.Username)
 		fmt.Printf("Modified by userinfo: %s\n", req.UserInfo)
 		fmt.Printf("operation: %s\n", req.Operation)
-		fmt.Printf("Old PVC: %v\n", oldPVC)
-		fmt.Printf("New PVC: %v\n", pvc)
+		fmt.Printf("Old PVC: %v\n", oldPVCDa)
+		fmt.Printf("New PVC: %v\n", pvcDa)
 	}
 
 	for _, g := range req.UserInfo.Groups {
