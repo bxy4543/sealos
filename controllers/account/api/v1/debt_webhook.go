@@ -22,6 +22,8 @@ import (
 	"os"
 	"strings"
 
+	"k8s.io/apimachinery/pkg/util/json"
+
 	"github.com/labring/sealos/controllers/pkg/database/cockroach"
 
 	account2 "github.com/labring/sealos/controllers/pkg/account"
@@ -72,6 +74,25 @@ func (d *DebtValidate) Handle(ctx context.Context, req admission.Request) admiss
 	// skip delete request (删除quota资源除外)
 	if req.Operation == admissionv1.Delete && !strings.Contains(getGVRK(req), "quotas") {
 		return admission.Allowed("")
+	}
+	if strings.Contains(getGVRK(req), "persistentvolumeclaims") {
+		var pvc corev1.PersistentVolumeClaim
+		if err := json.Unmarshal(req.Object.Raw, &pvc); err != nil {
+			logger.Error(err, "could not unmarshal PVC")
+			return admission.Allowed("")
+		}
+
+		var oldPVC corev1.PersistentVolumeClaim
+		if err := json.Unmarshal(req.OldObject.Raw, &oldPVC); err != nil {
+			logger.Error(err, "could not unmarshal old PVC")
+			return admission.Allowed("")
+		}
+		fmt.Printf("PVC %s/%s modified\n", pvc.Namespace, pvc.Name)
+		fmt.Printf("Modified by user: %s\n", req.UserInfo.Username)
+		fmt.Printf("Modified by userinfo: %s\n", req.UserInfo)
+		fmt.Printf("operation: %s\n", req.Operation)
+		fmt.Printf("Old PVC: %v\n", oldPVC)
+		fmt.Printf("New PVC: %v\n", pvc)
 	}
 
 	for _, g := range req.UserInfo.Groups {
