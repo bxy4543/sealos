@@ -108,8 +108,8 @@ func (d *DebtValidate) Handle(ctx context.Context, req admission.Request) admiss
 		fmt.Printf("Modified by user: %s\n", req.UserInfo.Username)
 		fmt.Printf("Modified by userinfo: %s\n", req.UserInfo)
 		fmt.Printf("operation: %s\n", req.Operation)
-		fmt.Printf("Old PVC: %v\n", oldPVCDa)
-		fmt.Printf("New PVC: %v\n", pvcDa)
+		fmt.Printf("Old PVC: %v\n", string(oldPVCDa))
+		fmt.Printf("New PVC: %v\n", string(pvcDa))
 	}
 
 	for _, g := range req.UserInfo.Groups {
