@@ -75,7 +75,7 @@ func (d *DebtValidate) Handle(ctx context.Context, req admission.Request) admiss
 	if req.Operation == admissionv1.Delete && !strings.Contains(getGVRK(req), "quotas") {
 		return admission.Allowed("")
 	}
-	if strings.Contains(getGVRK(req), "persistentvolumeclaims") {
+	if strings.Contains(getGVRK(req), "persistentvolumeclaims") && req.Operation == admissionv1.Update {
 		var pvc corev1.PersistentVolumeClaim
 		if err := json.Unmarshal(req.Object.Raw, &pvc); err != nil {
 			logger.Error(err, "could not unmarshal PVC")
