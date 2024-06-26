@@ -1,5 +1,5 @@
-apiVersion: monitoring.coreos.com/v1
-kind: ServiceMonitor
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
 metadata:
   name: lvm-exporter
   namespace: resources-system
@@ -11,7 +11,7 @@ spec:
       app: lvm-exporter
   endpoints:
     - port: metrics
-      interval: 10s
+      interval: 40s
 ---
 apiVersion: v1
 kind: Service
@@ -44,9 +44,10 @@ spec:
       labels:
         app: lvm-exporter
     spec:
+      serviceAccountName: pvc-reader
       containers:
         - name: lvm-exporter
-          image: registry.cn-hangzhou.aliyuncs.com/bxy4543/lvm-exporter:v0.0.1
+          image: registry.cn-hangzhou.aliyuncs.com/bxy4543/lvm-exporter:0626.14.10
           ports:
             - name: metrics
               containerPort: 9100
@@ -63,6 +64,9 @@ spec:
               mountPath: /dev
             - name: lvm-config
               mountPath: /etc/lvm
+            - mountPath: /var/lib/kubelet/
+              mountPropagation: Bidirectional
+              name: pods-mount-dir
       volumes:
         - name: dev
           hostPath:
@@ -70,3 +74,35 @@ spec:
         - name: lvm-config
           hostPath:
             path: /etc/lvm
+        - hostPath:
+            path: /var/lib/kubelet/
+            type: Directory
+          name: pods-mount-dir
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pvc-reader
+  namespace: resources-system
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: pvc-reader-role
+rules:
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: pvc-reader-binding
+subjects:
+  - kind: ServiceAccount
+    name: pvc-reader
+    namespace: resources-system
+roleRef:
+  kind: ClusterRole
+  name: pvc-reader-role
+  apiGroup: rbac.authorization.k8s.io

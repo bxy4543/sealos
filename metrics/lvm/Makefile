@@ -1,5 +1,5 @@
 # 定义变量
-DOCKER_IMAGE_NAME = registry.cn-hangzhou.aliyuncs.com/bxy4543/user-exporter
+DOCKER_IMAGE_NAME = registry.cn-hangzhou.aliyuncs.com/bxy4543/lvm-exporter
 BUILD_TOOL ?= docker
 DOCKER_TAG ?= dev
 #KUBECONFIG = ${HOME}/.kube/config
@@ -21,8 +21,8 @@ help:
 # 构建 exporter 二进制文件和 Docker 镜像
 .PHONY: build
 build:
-	CGO_ENABLED=0 GOOS=linux go build -o crd_exporter .
-	$(BUILD_TOOL) build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) .
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o lvm_exporter lvm.go
+	$(BUILD_TOOL) build -t $(DOCKER_IMAGE_NAME):$(DOCKER_TAG) --platform=linux/amd64 .
 
 # 将 Docker 镜像推送到存储库
 .PHONY: push

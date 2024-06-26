@@ -440,6 +440,26 @@ func ListLVMLogicalVolume() ([]LogicalVolume, error) {
 	return decodeLvsJSON(output)
 }
 
+func ResizeVolume(vol LogicalVolume, sizeByte string, resizeFs bool) error {
+	var args []string
+
+	dev := DevPath + vol.VGName + "/" + vol.Name
+	size := sizeByte + "b"
+
+	// -r = --resizefs
+	args = append(args, dev, "-L", size)
+	if resizeFs {
+		args = append(args, "-r")
+	}
+
+	cmd := exec.Command(LVExtend, args...)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return newExecError(output, err)
+	}
+	return nil
+}
+
 /*
 ListLVMPhysicalVolume invokes `pvs` to list all the available LVM physical volumes in the node.
 */
