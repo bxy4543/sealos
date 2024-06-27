@@ -97,7 +97,7 @@ func (c *CreateProcessor) RestorePipeLine() ([]func(cluster *v2.Cluster) error, 
 	var todoList []func(cluster *v2.Cluster) error
 	todoList = append(todoList,
 		// c.GetPhasePluginFunc(plugin.PhaseOriginally),
-		c.Check,
+		// c.Check,
 		c.PreProcess,
 		c.MountRootfs,
 		c.MirrorRegistry,
