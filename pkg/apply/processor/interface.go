@@ -41,6 +41,10 @@ type Interface interface {
 	Execute(cluster *v2.Cluster) error
 }
 
+type Restorer interface {
+	Restore(cluster *v2.Cluster) error
+}
+
 // compatible with older sealos versions
 func SyncNewVersionConfig(clusterName string) {
 	d := constants.NewPathResolver(clusterName)

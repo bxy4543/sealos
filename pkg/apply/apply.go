@@ -21,6 +21,8 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/labring/sealos/pkg/apply/processor"
+
 	"github.com/spf13/cobra"
 
 	"github.com/labring/sealos/pkg/apply/applydrivers"
@@ -71,4 +73,22 @@ func NewApplierFromFile(cmd *cobra.Command, path string, args *Args) (applydrive
 		ClusterCurrent: currentCluster,
 		RunNewImages:   GetNewImages(currentCluster, cluster),
 	}, nil
+}
+
+func Restorer(cmd *cobra.Command, args *RunArgs, image string) error {
+	ctx := withCommonContext(cmd.Context(), cmd)
+
+	cf := clusterfile.NewClusterFile(constants.Clusterfile(args.ClusterName))
+	err := cf.Process()
+	if err != nil && err != clusterfile.ErrClusterFileNotExists {
+		return fmt.Errorf("failed to process clusterfile: %w", err)
+	}
+	restorer, err := processor.NewRestoreProcessor(ctx, args.ClusterName, cf)
+	if err != nil {
+		return fmt.Errorf("failed to create restore processor: %w", err)
+	}
+	cluster := cf.GetCluster()
+
+	cluster.Spec.Image = []string{image}
+	return restorer.Restore(cf.GetCluster())
 }

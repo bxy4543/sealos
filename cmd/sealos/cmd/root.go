@@ -68,6 +68,7 @@ func init() {
 				newRunCmd(),
 				newResetCmd(),
 				newStatusCmd(),
+				newRestoreCmd(),
 			},
 		},
 		{

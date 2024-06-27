@@ -58,6 +58,20 @@ func (c *CreateProcessor) Execute(cluster *v2.Cluster) error {
 	return nil
 }
 
+func (c *CreateProcessor) Restore(cluster *v2.Cluster) error {
+	pipeLine, err := c.RestorePipeLine()
+	if err != nil {
+		return err
+	}
+	for _, f := range pipeLine {
+		if err = f(cluster); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (c *CreateProcessor) GetPipeLine() ([]func(cluster *v2.Cluster) error, error) {
 	var todoList []func(cluster *v2.Cluster) error
 	todoList = append(todoList,
@@ -73,6 +87,22 @@ func (c *CreateProcessor) GetPipeLine() ([]func(cluster *v2.Cluster) error, erro
 		c.Join,
 		// c.GetPhasePluginFunc(plugin.PhasePreGuest),
 		c.RunGuest,
+		// c.GetPhasePluginFunc(plugin.PhasePostInstall),
+	)
+
+	return todoList, nil
+}
+
+func (c *CreateProcessor) RestorePipeLine() ([]func(cluster *v2.Cluster) error, error) {
+	var todoList []func(cluster *v2.Cluster) error
+	todoList = append(todoList,
+		// c.GetPhasePluginFunc(plugin.PhaseOriginally),
+		c.Check,
+		c.PreProcess,
+		c.MountRootfs,
+		c.MirrorRegistry,
+		// c.GetPhasePluginFunc(plugin.PhasePreInit),
+		// c.GetPhasePluginFunc(plugin.PhasePreGuest),
 		// c.GetPhasePluginFunc(plugin.PhasePostInstall),
 	)
 
@@ -176,6 +206,14 @@ func (c *CreateProcessor) RunGuest(cluster *v2.Cluster) error {
 }
 
 func NewCreateProcessor(ctx context.Context, name string, clusterFile clusterfile.Interface) (Interface, error) {
+	return newCreateProcessor(ctx, name, clusterFile)
+}
+
+func NewRestoreProcessor(ctx context.Context, name string, clusterFile clusterfile.Interface) (Restorer, error) {
+	return newCreateProcessor(ctx, name, clusterFile)
+}
+
+func newCreateProcessor(ctx context.Context, name string, clusterFile clusterfile.Interface) (*CreateProcessor, error) {
 	bder, err := buildah.New(name)
 	if err != nil {
 		return nil, err
