@@ -140,13 +140,7 @@ func (r *OperationReqReconciler) reconcile(ctx context.Context, request *userv1.
 		r.Recorder.Eventf(request, v1.EventTypeWarning, "Failed to get user", "Failed to get user %s", request.Spec.User)
 		return ctrl.Result{}, err
 	}
-	if request.Spec.Role == userv1.OwnerRoleType {
-		if user.Name == user.Annotations[userv1.UserAnnotationOwnerKey] {
-			// 不允许转移个人空间
-			r.Recorder.Eventf(request, v1.EventTypeWarning, "Failed to grant role", "Failed to grant role %s to user %s, cannot transfer personal workspace", request.Spec.Role, request.Spec.User)
-			return ctrl.Result{}, r.updateRequestStatus(ctx, request, userv1.RequestFailed)
-		}
-	}
+
 	bindUser := &userv1.User{}
 	if err := r.Get(ctx, client.ObjectKey{Name: request.Spec.User}, bindUser); err != nil {
 		r.Recorder.Eventf(request, v1.EventTypeWarning, "Failed to get bind user", "Failed to get bind user %s", request.Spec.User)
