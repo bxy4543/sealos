@@ -2,7 +2,6 @@ package controllers
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strings"
 
@@ -28,14 +27,13 @@ import (
 
 // ImageReconciler 用于协调 Deployment 和 StatefulSet 资源
 type ImageReconciler struct {
+	Account *AccountReconciler
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 	//Cache  cache.Cache
 	Domain string
 }
-
-// ... 省略现有代码 ...
 
 func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("resource", req.NamespacedName)
@@ -52,7 +50,6 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 	containers, meta := r.extractResourceInfo(obj)
 
-	fmt.Printf("\n\n\nobject: \n %#+v ------\n\n\n", obj)
 	return r.handleResource(ctx, containers, meta, log)
 }
 
@@ -88,7 +85,11 @@ func (r *ImageReconciler) extractResourceInfo(obj client.Object) ([]v1.Container
 func (r *ImageReconciler) handleResource(_ context.Context, containers []v1.Container, meta v12.ObjectMeta, log logr.Logger) (ctrl.Result, error) {
 	for _, container := range containers {
 		if strings.Contains(container.Image, "hub."+r.Domain) {
-			log.Info("发现 devbox 镜像", "namespace", meta.Namespace, "name", meta.Name, "image", container.Image)
+			err := r.Account.AccountV2.SetAccountDevbox1024Transaction(meta.Namespace)
+			if err != nil {
+				log.Error(err, "设置 devbox 交易失败", "namespace", meta.Namespace, "name", meta.Name)
+				return ctrl.Result{}, err
+			}
 		}
 	}
 	return ctrl.Result{}, nil

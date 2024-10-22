@@ -110,6 +110,7 @@ type AccountV2 interface {
 	TransferAccountAll(from, to *types.UserQueryOpts) error
 	AddDeductionBalance(user *types.UserQueryOpts, balance int64) error
 	AddDeductionBalanceWithFunc(ops *types.UserQueryOpts, amount int64, preDo, postDo func() error) error
+	SetAccountDevbox1024Transaction(namespace string) error
 }
 
 type Creator interface {

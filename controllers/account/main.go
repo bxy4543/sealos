@@ -265,8 +265,9 @@ func main() {
 	//	setupManagerError(err, "Image")
 	//}
 	if err = (&controllers.ImageReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Account: accountReconciler,
+		Client:  mgr.GetClient(),
+		Scheme:  mgr.GetScheme(),
 	}).SetupWithManager(mgr, rateOpts); err != nil {
 		setupManagerError(err, "Image")
 	}

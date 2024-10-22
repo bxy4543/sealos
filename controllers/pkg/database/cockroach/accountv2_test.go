@@ -15,8 +15,11 @@
 package cockroach
 
 import (
+	"fmt"
 	"os"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/labring/sealos/controllers/pkg/types"
 )
@@ -46,4 +49,14 @@ func TestCockroach_GetUserOauthProvider(t *testing.T) {
 		return
 	}
 	t.Logf("provider: %+v", provider)
+}
+
+func TestNewUUIDFromUUID(t *testing.T) {
+	uid, err := uuid.Parse("")
+	if err != nil {
+		t.Errorf("uuid.Parse() error = %v", err)
+		return
+	}
+	fmt.Printf("uuid: %s\n", NewUUIDFromUUID(uid).String())
+	fmt.Printf("uuid: %s\n", NewUUIDFromUUID(uuid.Nil).String())
 }

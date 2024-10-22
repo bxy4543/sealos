@@ -15,11 +15,13 @@
 package cockroach
 
 import (
+	"crypto/md5"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"time"
 
 	"gorm.io/gorm/clause"
@@ -219,6 +221,90 @@ func (c *Cockroach) getFirstRechargePayments(ops *types.UserQueryOpts) ([]types.
 		return nil, fmt.Errorf("failed to get payment count: %v", err)
 	}
 	return payments, nil
+}
+
+const devBoxActive1024Type = "devbox_active_1024"
+
+func (c *Cockroach) getAccountDevbox1024Transaction(db *gorm.DB, userUID uuid.UUID) (bool, error) {
+	var account types.AccountTransaction
+	if err := db.Where(&types.AccountTransaction{UserUID: userUID, Type: devBoxActive1024Type}).First(&account).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to get account transaction: %v", err)
+	}
+	return true, nil
+}
+
+func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) error {
+	userUID, err := c.getWorkspaceUserUID(namespace)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			log.Printf("workspace %s not found\n", namespace)
+			return nil
+		}
+		return fmt.Errorf("failed to get workspace user uid: %v", err)
+	}
+
+	return c.DB.Transaction(func(tx *gorm.DB) error {
+		ok, err := c.getAccountDevbox1024Transaction(tx, userUID)
+		if err != nil {
+			return fmt.Errorf("failed to get account devbox 1024 transaction: %v", err)
+		}
+		if ok {
+			return nil
+		}
+		msg := "year-" + strconv.Itoa(time.Now().Year()) + "-devbox-active-1024"
+		transaction := types.AccountTransaction{
+			// 主键唯一，保证同一个用户只能生成一次
+			ID:        NewUUIDFromUUID(userUID),
+			Balance:   20 * BaseUnit,
+			Type:      devBoxActive1024Type,
+			UserUID:   userUID,
+			Message:   &msg,
+			BillingID: uuid.New(),
+		}
+		if err := tx.Save(&transaction).Error; err != nil {
+			return fmt.Errorf("failed to save transaction: %v", err)
+		}
+		if err := c.updateBalanceRaw(tx, &types.UserQueryOpts{UID: userUID}, 20*BaseUnit, false, true, true); err != nil {
+			return fmt.Errorf("failed to update balance: %v", err)
+		}
+		return nil
+	})
+}
+
+// NewUUIDFromUUID 根据现有 UUID 生成一个新的固定 UUID
+func NewUUIDFromUUID(inputUUID uuid.UUID) uuid.UUID {
+	// 计算输入UUID的MD5哈希值
+	hash := md5.Sum([]byte(inputUUID.String()))
+
+	// 将哈希值格式化为UUID (注意需要手动设置特定位)
+	u := uuid.UUID{}
+	copy(u[:], hash[:])
+
+	// 手动设置 UUID 的版本号为 3（命名空间 + MD5）
+	u[6] = (u[6] & 0x0f) | (3 << 4)
+	// 设置 UUID 的 variant 字段
+	u[8] = (u[8] & 0x3f) | 0x80
+
+	return u
+}
+
+func (c *Cockroach) getWorkspaceUserUID(workspace string) (uuid.UUID, error) {
+	var _workspace types.Workspace
+	var userWorkspace types.UserWorkspace
+	var userCr types.RegionUserCr
+	if err := c.Localdb.Where(&types.Workspace{ID: workspace}).First(&_workspace).Error; err != nil {
+		return uuid.Nil, err
+	}
+	if err := c.Localdb.Where(&types.UserWorkspace{WorkspaceUID: _workspace.UID}).First(&userWorkspace).Error; err != nil {
+		return uuid.Nil, err
+	}
+	if err := c.Localdb.Where(&types.RegionUserCr{UID: userWorkspace.UserCrUID}).First(&userCr).Error; err != nil {
+		return uuid.Nil, err
+	}
+	return userCr.UserUID, nil
 }
 
 func (c *Cockroach) ProcessPendingTaskRewards() error {
