@@ -250,6 +250,13 @@ func main() {
 		setupManagerError(err, "Payment")
 	}
 
+	if err = (&controllers.ImageReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr, rateOpts); err != nil {
+		setupManagerError(err, "Image")
+	}
+
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
