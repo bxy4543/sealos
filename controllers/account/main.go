@@ -249,7 +249,21 @@ func main() {
 	}).SetupWithManager(mgr); err != nil {
 		setupManagerError(err, "Payment")
 	}
-
+	//_cache, err := cachev1.New(mgr.GetConfig(), cachev1.Options{
+	//	Scheme: mgr.GetScheme(),
+	//	Mapper: mgr.GetRESTMapper(),
+	//	ByObject: map[client.Object]cachev1.ByObject{
+	//		&appsv1.Deployment{}: {
+	//			Field: fields.SelectorFromSet(fields.Set{"spec": ""}),
+	//		},
+	//		&appsv1.StatefulSet{}: {
+	//			Field: fields.SelectorFromSet(fields.Set{"spec": ""}),
+	//		},
+	//	},
+	//})
+	//if err != nil {
+	//	setupManagerError(err, "Image")
+	//}
 	if err = (&controllers.ImageReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),

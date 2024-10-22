@@ -20,10 +20,8 @@ import (
 
 	"github.com/go-logr/logr"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
 )
@@ -33,7 +31,7 @@ type ImageReconciler struct {
 	client.Client
 	Log    logr.Logger
 	Scheme *runtime.Scheme
-	Cache  cache.Cache
+	//Cache  cache.Cache
 	Domain string
 }
 
@@ -60,7 +58,7 @@ func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl
 
 func (r *ImageReconciler) getResource(ctx context.Context, req ctrl.Request) (client.Object, error) {
 	deploy := &appsv1.Deployment{}
-	err := r.Cache.Get(ctx, req.NamespacedName, deploy)
+	err := r.Get(ctx, req.NamespacedName, deploy)
 	if err == nil {
 		return deploy, nil
 	}
@@ -69,7 +67,7 @@ func (r *ImageReconciler) getResource(ctx context.Context, req ctrl.Request) (cl
 	}
 
 	sts := &appsv1.StatefulSet{}
-	err = r.Cache.Get(ctx, req.NamespacedName, sts)
+	err = r.Get(ctx, req.NamespacedName, sts)
 	if err != nil {
 		return nil, err
 	}
@@ -101,27 +99,27 @@ func (r *ImageReconciler) SetupWithManager(mgr ctrl.Manager, rateOpts controller
 	r.Domain = os.Getenv("DOMAIN")
 	r.Log = ctrl.Log.WithName("controllers").WithName("Image")
 
-	// 创建一个新的缓存，只关注 spec 字段
-	_cache, err := cache.New(mgr.GetConfig(), cache.Options{
-		Scheme: mgr.GetScheme(),
-		Mapper: mgr.GetRESTMapper(),
-		ByObject: map[client.Object]cache.ByObject{
-			&appsv1.Deployment{}: {
-				Field: fields.SelectorFromSet(fields.Set{"spec": ""}),
-			},
-			&appsv1.StatefulSet{}: {
-				Field: fields.SelectorFromSet(fields.Set{"spec": ""}),
-			},
-		},
-	})
-	if err != nil {
-		return err
-	}
-	r.Cache = _cache
+	//// 创建一个新的缓存，只关注 spec 字段
+	//_cache, err := cache.New(mgr.GetConfig(), cache.Options{
+	//	Scheme: mgr.GetScheme(),
+	//	Mapper: mgr.GetRESTMapper(),
+	//	ByObject: map[client.Object]cache.ByObject{
+	//		&appsv1.Deployment{}: {
+	//			Field: fields.SelectorFromSet(fields.Set{"spec": ""}),
+	//		},
+	//		&appsv1.StatefulSet{}: {
+	//			Field: fields.SelectorFromSet(fields.Set{"spec": ""}),
+	//		},
+	//	},
+	//})
+	//if err != nil {
+	//	return err
+	//}
+	//r.Cache = _cache
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&appsv1.Deployment{}, builder.WithPredicates(OnlyCreatePredicate{})).
-		Watches(&appsv1.StatefulSet{}, &handler.EnqueueRequestForObject{}).
+		Watches(&appsv1.StatefulSet{}, handler.EventHandler(OnlyCreateHandler{})).
 		WithOptions(rateOpts).
 		Complete(r)
 }
