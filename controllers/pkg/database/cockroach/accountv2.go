@@ -42,14 +42,14 @@ import (
 )
 
 type Cockroach struct {
-	DB            *gorm.DB
-	Localdb       *gorm.DB
-	LocalRegion   *types.Region
-	ZeroAccount   *types.Account
-	accountConfig *types.AccountConfig
-	tasks         map[uuid.UUID]types.Task
-	userMutex     map[uuid.UUID]*sync.Mutex
-	userActive    map[uuid.UUID]bool
+	DB                *gorm.DB
+	Localdb           *gorm.DB
+	LocalRegion       *types.Region
+	ZeroAccount       *types.Account
+	accountConfig     *types.AccountConfig
+	tasks             map[uuid.UUID]types.Task
+	userConcurrentMap *sync.Map
+	userActive        map[uuid.UUID]bool
 }
 
 const (
@@ -252,19 +252,20 @@ func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) (flag bool
 	if c.userActive[userUID] {
 		return false, nil
 	}
-	lock, ok := c.userMutex[userUID]
+	userLock, ok := c.userConcurrentMap.Load(userUID)
 	if !ok {
-		lock = &sync.Mutex{}
-		c.userMutex[userUID] = lock
+		userLock = &sync.Mutex{}
+		c.userConcurrentMap.Store(userUID, userLock)
 	}
-	lock.Lock()
-	defer lock.Unlock()
+	userLock.(*sync.Mutex).Lock()
+	defer userLock.(*sync.Mutex).Unlock()
 	err = c.DB.Transaction(func(tx *gorm.DB) error {
 		ok, err2 := c.getAccountDevbox1024Transaction(tx, userUID)
 		if err2 != nil {
 			return fmt.Errorf("failed to get account devbox 1024 transaction: %v", err2)
 		}
 		if ok {
+			c.userActive[userUID] = true
 			return nil
 		}
 		msg := "year-" + strconv.Itoa(time.Now().Year()) + "-devbox-active-1024"
@@ -1132,7 +1133,7 @@ func NewCockRoach(globalURI, localURI string) (*Cockroach, error) {
 	} else {
 		return nil, fmt.Errorf("empty local region")
 	}
-	cockroach.userMutex = make(map[uuid.UUID]*sync.Mutex)
+	cockroach.userConcurrentMap = &sync.Map{}
 	cockroach.userActive = make(map[uuid.UUID]bool)
 	return cockroach, nil
 }

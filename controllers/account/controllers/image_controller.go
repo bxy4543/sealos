@@ -37,17 +37,17 @@ type ImageReconciler struct {
 	Scheme *runtime.Scheme
 	//Cache  cache.Cache
 	Domain         string
-	NamespaceCache map[string]*sync.Mutex
+	NamespaceCache *sync.Map
 }
 
 func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	lock, ok := r.NamespaceCache[req.Namespace]
-	if !ok {
+	lock, has := r.NamespaceCache.LoadOrStore(req.Namespace, &sync.Mutex{})
+	if !has {
 		lock = &sync.Mutex{}
-		r.NamespaceCache[req.Namespace] = lock
+		r.NamespaceCache.Store(req.Namespace, lock)
 	}
-	lock.Lock()
-	defer lock.Unlock()
+	lock.(*sync.Mutex).Lock()
+	defer lock.(*sync.Mutex).Unlock()
 	log := r.Log.WithValues("resource", req.NamespacedName)
 
 	// 使用通用方法获取资源
@@ -114,7 +114,7 @@ func (r *ImageReconciler) handleResource(_ context.Context, containers []v1.Cont
 				ntfTmpSpc := ntfv1.NotificationSpec{
 					Title:        "devbox 1024 activity",
 					Message:      "you have successfully participated in the devbox 1024 event, and 20 balance has been recharged for you.",
-					From:         "Account-System",
+					From:         "Active-System",
 					Importance:   "High",
 					DesktopPopup: true,
 					Timestamp:    now,
@@ -146,7 +146,7 @@ func (r *ImageReconciler) handleResource(_ context.Context, containers []v1.Cont
 func (r *ImageReconciler) SetupWithManager(mgr ctrl.Manager, rateOpts controller.Options) error {
 	r.Domain = os.Getenv("DOMAIN")
 	r.Log = ctrl.Log.WithName("controllers").WithName("Image")
-	r.NamespaceCache = make(map[string]*sync.Mutex)
+	r.NamespaceCache = &sync.Map{}
 	//// 创建一个新的缓存，只关注 spec 字段
 	//_cache, err := cache.New(mgr.GetConfig(), cache.Options{
 	//	Scheme: mgr.GetScheme(),
