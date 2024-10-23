@@ -239,17 +239,18 @@ func (c *Cockroach) getAccountDevbox1024Transaction(db *gorm.DB, userUID uuid.UU
 	return true, nil
 }
 
-func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) error {
+func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) (flag bool, err error) {
 	userUID, err := c.getWorkspaceUserUID(namespace)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("workspace %s not found\n", namespace)
-			return nil
+			return false, nil
 		}
-		return fmt.Errorf("failed to get workspace user uid: %v", err)
+		err = fmt.Errorf("failed to get workspace user uid: %v", err)
+		return
 	}
 	if c.userActive[userUID] {
-		return nil
+		return false, nil
 	}
 	lock, ok := c.userMutex[userUID]
 	if !ok {
@@ -258,10 +259,10 @@ func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) error {
 	}
 	lock.Lock()
 	defer lock.Unlock()
-	return c.DB.Transaction(func(tx *gorm.DB) error {
-		ok, err := c.getAccountDevbox1024Transaction(tx, userUID)
-		if err != nil {
-			return fmt.Errorf("failed to get account devbox 1024 transaction: %v", err)
+	err = c.DB.Transaction(func(tx *gorm.DB) error {
+		ok, err2 := c.getAccountDevbox1024Transaction(tx, userUID)
+		if err2 != nil {
+			return fmt.Errorf("failed to get account devbox 1024 transaction: %v", err2)
 		}
 		if ok {
 			return nil
@@ -276,15 +277,17 @@ func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) error {
 			Message:   &msg,
 			BillingID: uuid.New(),
 		}
-		if err := tx.Save(&transaction).Error; err != nil {
-			return fmt.Errorf("failed to save transaction: %v", err)
+		if err2 := tx.Save(&transaction).Error; err2 != nil {
+			return fmt.Errorf("failed to save transaction: %v", err2)
 		}
-		if err := c.updateBalanceRaw(tx, &types.UserQueryOpts{UID: userUID}, 20*BaseUnit, false, true, true); err != nil {
-			return fmt.Errorf("failed to update balance: %v", err)
+		if err2 := c.updateBalanceRaw(tx, &types.UserQueryOpts{UID: userUID}, 20*BaseUnit, false, true, true); err2 != nil {
+			return fmt.Errorf("failed to update balance: %v", err2)
 		}
 		c.userActive[userUID] = true
+		flag = true
 		return nil
 	})
+	return
 }
 
 // NewUUIDFromUUID 根据现有 UUID 生成一个新的固定 UUID

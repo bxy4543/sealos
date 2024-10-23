@@ -3,9 +3,12 @@ package controllers
 import (
 	"context"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
+	ntfv1 "github.com/labring/sealos/controllers/pkg/notification/api/v1"
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -94,10 +97,44 @@ func (r *ImageReconciler) extractResourceInfo(obj client.Object) ([]v1.Container
 func (r *ImageReconciler) handleResource(_ context.Context, containers []v1.Container, meta v12.ObjectMeta, log logr.Logger) (ctrl.Result, error) {
 	for _, container := range containers {
 		if strings.Contains(container.Image, "hub."+r.Domain) {
-			err := r.Account.AccountV2.SetAccountDevbox1024Transaction(meta.Namespace)
+			isSet, err := r.Account.AccountV2.SetAccountDevbox1024Transaction(meta.Namespace)
 			if err != nil {
 				log.Error(err, "设置 devbox 交易失败", "namespace", meta.Namespace, "name", meta.Name)
 				return ctrl.Result{}, err
+			}
+			if isSet {
+				// TODO 信息通知
+				now := time.Now().UTC().Unix()
+				ntfTmp := &ntfv1.Notification{
+					ObjectMeta: v12.ObjectMeta{
+						Name:      "devbox-transaction-" + strconv.FormatInt(now, 10),
+						Namespace: meta.Namespace,
+					},
+				}
+				ntfTmpSpc := ntfv1.NotificationSpec{
+					Title:        "devbox 1024 activity",
+					Message:      "you have successfully participated in the devbox 1024 event, and 20 balance has been recharged for you.",
+					From:         "Account-System",
+					Importance:   "High",
+					DesktopPopup: true,
+					Timestamp:    now,
+					I18n: map[string]ntfv1.I18n{
+						languageZh: {
+							Title:   "活动通知",
+							From:    "费用中心",
+							Message: "您已成功参与 devbox 1024 活动，已为您充值 20 额度。",
+						},
+					},
+				}
+				if ntfTmp.Labels == nil {
+					ntfTmp.Labels = make(map[string]string)
+				}
+				ntfTmp.Labels[readStatusLabel] = "false"
+				ntfTmp.Spec = ntfTmpSpc
+				err = r.Create(context.Background(), ntfTmp)
+				if err != nil {
+					log.Error(err, "创建通知失败", "namespace", meta.Namespace, "name", meta.Name)
+				}
 			}
 			return ctrl.Result{}, nil
 		}
