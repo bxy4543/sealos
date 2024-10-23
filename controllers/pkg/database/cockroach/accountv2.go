@@ -22,6 +22,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 
 	"gorm.io/gorm/clause"
@@ -47,6 +48,8 @@ type Cockroach struct {
 	ZeroAccount   *types.Account
 	accountConfig *types.AccountConfig
 	tasks         map[uuid.UUID]types.Task
+	userMutex     map[uuid.UUID]*sync.Mutex
+	userActive    map[uuid.UUID]bool
 }
 
 const (
@@ -245,7 +248,16 @@ func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) error {
 		}
 		return fmt.Errorf("failed to get workspace user uid: %v", err)
 	}
-
+	if c.userActive[userUID] {
+		return nil
+	}
+	lock, ok := c.userMutex[userUID]
+	if !ok {
+		lock = &sync.Mutex{}
+		c.userMutex[userUID] = lock
+	}
+	lock.Lock()
+	defer lock.Unlock()
 	return c.DB.Transaction(func(tx *gorm.DB) error {
 		ok, err := c.getAccountDevbox1024Transaction(tx, userUID)
 		if err != nil {
@@ -270,6 +282,7 @@ func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) error {
 		if err := c.updateBalanceRaw(tx, &types.UserQueryOpts{UID: userUID}, 20*BaseUnit, false, true, true); err != nil {
 			return fmt.Errorf("failed to update balance: %v", err)
 		}
+		c.userActive[userUID] = true
 		return nil
 	})
 }
@@ -1116,6 +1129,8 @@ func NewCockRoach(globalURI, localURI string) (*Cockroach, error) {
 	} else {
 		return nil, fmt.Errorf("empty local region")
 	}
+	cockroach.userMutex = make(map[uuid.UUID]*sync.Mutex)
+	cockroach.userActive = make(map[uuid.UUID]bool)
 	return cockroach, nil
 }
 

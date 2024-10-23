@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"strings"
+	"sync"
 
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
@@ -32,10 +33,18 @@ type ImageReconciler struct {
 	Log    logr.Logger
 	Scheme *runtime.Scheme
 	//Cache  cache.Cache
-	Domain string
+	Domain         string
+	NamespaceCache map[string]*sync.Mutex
 }
 
 func (r *ImageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	lock, ok := r.NamespaceCache[req.Namespace]
+	if !ok {
+		lock = &sync.Mutex{}
+		r.NamespaceCache[req.Namespace] = lock
+	}
+	lock.Lock()
+	defer lock.Unlock()
 	log := r.Log.WithValues("resource", req.NamespacedName)
 
 	// 使用通用方法获取资源
@@ -90,6 +99,7 @@ func (r *ImageReconciler) handleResource(_ context.Context, containers []v1.Cont
 				log.Error(err, "设置 devbox 交易失败", "namespace", meta.Namespace, "name", meta.Name)
 				return ctrl.Result{}, err
 			}
+			return ctrl.Result{}, nil
 		}
 	}
 	return ctrl.Result{}, nil
@@ -99,7 +109,7 @@ func (r *ImageReconciler) handleResource(_ context.Context, containers []v1.Cont
 func (r *ImageReconciler) SetupWithManager(mgr ctrl.Manager, rateOpts controller.Options) error {
 	r.Domain = os.Getenv("DOMAIN")
 	r.Log = ctrl.Log.WithName("controllers").WithName("Image")
-
+	r.NamespaceCache = make(map[string]*sync.Mutex)
 	//// 创建一个新的缓存，只关注 spec 字段
 	//_cache, err := cache.New(mgr.GetConfig(), cache.Options{
 	//	Scheme: mgr.GetScheme(),
