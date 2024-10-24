@@ -42,14 +42,14 @@ import (
 )
 
 type Cockroach struct {
-	DB                *gorm.DB
-	Localdb           *gorm.DB
-	LocalRegion       *types.Region
-	ZeroAccount       *types.Account
-	accountConfig     *types.AccountConfig
-	tasks             map[uuid.UUID]types.Task
-	userConcurrentMap *sync.Map
-	userActive        map[uuid.UUID]bool
+	DB                      *gorm.DB
+	Localdb                 *gorm.DB
+	LocalRegion             *types.Region
+	ZeroAccount             *types.Account
+	accountConfig           *types.AccountConfig
+	tasks                   map[uuid.UUID]types.Task
+	userConcurrentMap       *sync.Map
+	userActiveConcurrentMap *sync.Map
 }
 
 const (
@@ -249,7 +249,8 @@ func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) (flag bool
 		err = fmt.Errorf("failed to get workspace user uid: %v", err)
 		return
 	}
-	if c.userActive[userUID] {
+	_, ok := c.userActiveConcurrentMap.Load(userUID)
+	if ok {
 		return false, nil
 	}
 	userLock, ok := c.userConcurrentMap.Load(userUID)
@@ -265,7 +266,7 @@ func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) (flag bool
 			return fmt.Errorf("failed to get account devbox 1024 transaction: %v", err2)
 		}
 		if ok {
-			c.userActive[userUID] = true
+			c.userActiveConcurrentMap.Store(userUID, true)
 			return nil
 		}
 		msg := "year-" + strconv.Itoa(time.Now().Year()) + "-devbox-active-1024"
@@ -284,7 +285,7 @@ func (c *Cockroach) SetAccountDevbox1024Transaction(namespace string) (flag bool
 		if err2 := c.updateBalanceRaw(tx, &types.UserQueryOpts{UID: userUID}, 20*BaseUnit, false, true, true); err2 != nil {
 			return fmt.Errorf("failed to update balance: %v", err2)
 		}
-		c.userActive[userUID] = true
+		c.userActiveConcurrentMap.Store(userUID, true)
 		flag = true
 		return nil
 	})
@@ -1134,7 +1135,7 @@ func NewCockRoach(globalURI, localURI string) (*Cockroach, error) {
 		return nil, fmt.Errorf("empty local region")
 	}
 	cockroach.userConcurrentMap = &sync.Map{}
-	cockroach.userActive = make(map[uuid.UUID]bool)
+	cockroach.userActiveConcurrentMap = &sync.Map{}
 	return cockroach, nil
 }
 
