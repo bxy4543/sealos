@@ -10,6 +10,8 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/sirupsen/logrus"
+
 	"gorm.io/gorm"
 
 	"github.com/labring/sealos/controllers/pkg/resources"
@@ -1001,8 +1003,13 @@ func GetRechargeDiscount(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("failed to get recharge discount : %v", err)})
 		return
 	}
+	defaultStep, err := dao.DBClient.GetDefaultRechargeSteps()
+	if err != nil {
+		logrus.Errorf("failed to get default step: %v", err)
+	}
 	c.JSON(http.StatusOK, gin.H{
-		"discount": discount,
+		"discount":    discount,
+		"defaultStep": defaultStep,
 	})
 }
 

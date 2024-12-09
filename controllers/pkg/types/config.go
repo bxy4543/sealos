@@ -29,6 +29,7 @@ type AccountConfig struct {
 	TaskProcessRegion          string            `json:"taskProcessRegion"`
 	FirstRechargeDiscountSteps map[int64]float64 `json:"firstRechargeDiscountSteps"`
 	DefaultDiscountSteps       map[int64]float64 `json:"defaultDiscountSteps"`
+	DefaultSteps               []int64           `json:"defaultSteps"`
 }
 
 func (c Configs) TableName() string {

@@ -65,6 +65,7 @@ type Interface interface {
 	GetLocalRegion() types.Region
 	UseGiftCode(req *helper.UseGiftCodeReq) (*types.GiftCode, error)
 	GetRechargeDiscount(req helper.AuthReq) (helper.RechargeDiscountResp, error)
+	GetDefaultRechargeSteps() ([]int64, error)
 	ProcessPendingTaskRewards() error
 	GetUserRealNameInfo(req *helper.GetRealNameInfoReq) (*types.UserRealNameInfo, error)
 	ReconcileUnsettledLLMBilling(startTime, endTime time.Time) error
@@ -1563,6 +1564,14 @@ func (m *Account) GetRechargeDiscount(req helper.AuthReq) (helper.RechargeDiscou
 		DefaultSteps:       userDiscount.DefaultSteps,
 		FirstRechargeSteps: userDiscount.FirstRechargeSteps,
 	}, nil
+}
+
+func (m *Account) GetDefaultRechargeSteps() ([]int64, error) {
+	cfg, err := m.ck.GetAccountConfig()
+	if err != nil {
+		return nil, err
+	}
+	return cfg.DefaultSteps, err
 }
 
 func (m *Account) ProcessPendingTaskRewards() error {
