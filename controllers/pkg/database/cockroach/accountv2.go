@@ -22,6 +22,8 @@ import (
 	"os"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"gorm.io/gorm/clause"
 
 	"gorm.io/gorm/logger"
@@ -222,6 +224,14 @@ func (c *Cockroach) getFirstRechargePayments(ops *types.UserQueryOpts) ([]types.
 }
 
 func (c *Cockroach) ProcessPendingTaskRewards() error {
+	tasks, err := c.getTask()
+	if err != nil {
+		return fmt.Errorf("failed to get tasks: %w", err)
+	}
+	taskIDS := make([]uuid.UUID, 0, len(tasks))
+	for k := range tasks {
+		taskIDS = append(taskIDS, k)
+	}
 	for {
 		var userTask types.UserTask
 		err := c.DB.Transaction(func(tx *gorm.DB) error {
@@ -231,36 +241,34 @@ func (c *Cockroach) ProcessPendingTaskRewards() error {
 			}).Where(&types.UserTask{
 				Status:       types.TaskStatusCompleted,
 				RewardStatus: types.TaskStatusNotCompleted,
-			}).First(&userTask).Error; err != nil {
+			}).Where(`"taskId" IN ?`, taskIDS).First(&userTask).Error; err != nil {
 				if errors.Is(err, gorm.ErrRecordNotFound) {
 					return err
 				}
 				return fmt.Errorf("failed to get pending reward user task: %w", err)
 			}
-			tasks, err := c.getTask()
-			if err != nil {
-				return fmt.Errorf("failed to get tasks: %w", err)
+			task, ok := tasks[userTask.TaskID]
+			if !ok {
+				return fmt.Errorf("task not found: %s", userTask.TaskID)
 			}
-
-			task := tasks[userTask.TaskID]
-			if task.Reward == 0 {
-				fmt.Printf("usertask %v reward is 0, skip\n", userTask)
+			if task.Reward != 0 {
+				logrus.Info("task reward: ", userTask)
+				if err = c.updateBalanceRaw(tx, &types.UserQueryOpts{UID: userTask.UserUID}, task.Reward, false, true, true); err != nil {
+					return fmt.Errorf("failed to update balance: %w", err)
+				}
+				msg := fmt.Sprintf("task %s reward", task.Title)
+				transaction := types.AccountTransaction{
+					Balance:   task.Reward,
+					Type:      string(task.TaskType) + "_Reward",
+					UserUID:   userTask.UserUID,
+					ID:        uuid.New(),
+					Message:   &msg,
+					BillingID: userTask.ID,
+				}
+				if err = tx.Create(&transaction).Error; err != nil {
+					return fmt.Errorf("failed to save transaction: %w", err)
+				}
 				return nil
-			}
-			if err = c.updateBalanceRaw(tx, &types.UserQueryOpts{UID: userTask.UserUID}, task.Reward, false, true, true); err != nil {
-				return fmt.Errorf("failed to update balance: %w", err)
-			}
-			msg := fmt.Sprintf("task %s reward", task.Title)
-			transaction := types.AccountTransaction{
-				Balance:   task.Reward,
-				Type:      string(task.TaskType) + "_Reward",
-				UserUID:   userTask.UserUID,
-				ID:        uuid.New(),
-				Message:   &msg,
-				BillingID: userTask.ID,
-			}
-			if err = tx.Create(&transaction).Error; err != nil {
-				return fmt.Errorf("failed to save transaction: %w", err)
 			}
 			if err = tx.Model(&userTask).Update("rewardStatus", types.TaskStatusCompleted).Error; err != nil {
 				return fmt.Errorf("failed to update user task status: %w", err)
@@ -278,12 +286,9 @@ func (c *Cockroach) ProcessPendingTaskRewards() error {
 }
 
 func (c *Cockroach) getTask() (map[uuid.UUID]types.Task, error) {
-	if len(c.tasks) != 0 {
-		return c.tasks, nil
-	}
 	c.tasks = make(map[uuid.UUID]types.Task)
 	var tasks []types.Task
-	if err := c.DB.Model(&types.Task{IsActive: true, IsNewUserTask: true}).Find(&tasks).Error; err != nil {
+	if err := c.DB.Model(&types.Task{IsActive: true}).Find(&tasks).Error; err != nil {
 		return nil, fmt.Errorf("failed to get tasks: %v", err)
 	}
 	for i := range tasks {
