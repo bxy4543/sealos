@@ -1,3 +1,18 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceScrape
+metadata:
+  name: ingress-monitor
+  namespace: sealos
+  labels:
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      app: launchpad-monitor
+  endpoints:
+    - port: http
+      interval: 40s
+---
 apiVersion: v1
 kind: ConfigMap
 metadata:

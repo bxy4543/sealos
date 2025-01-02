@@ -8,7 +8,10 @@ import (
 )
 
 type Config struct {
-	Server ServeConfig `yaml:"server"`
+	Server     ServeConfig `yaml:"server"`
+	VMLogsURL  string      `yaml:"vm_logs_url"`
+	VMLogsUser string      `yaml:"vm_logs_user"`
+	VMLogsPwd  string      `yaml:"vm_logs_pwd"`
 }
 
 type ServeConfig struct {
