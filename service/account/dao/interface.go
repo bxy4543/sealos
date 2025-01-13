@@ -9,8 +9,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	accountv1 "github.com/labring/sealos/controllers/account/api/v1"
-
 	"gorm.io/gorm"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
@@ -21,6 +19,7 @@ import (
 
 	"github.com/labring/sealos/controllers/pkg/types"
 
+	_common "github.com/labring/sealos/controllers/pkg/common"
 	"github.com/labring/sealos/service/account/common"
 
 	"github.com/labring/sealos/controllers/pkg/resources"
@@ -31,6 +30,11 @@ import (
 	"github.com/labring/sealos/service/account/helper"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+)
+
+const (
+	Consumption _common.Type = iota
+	SubConsumption
 )
 
 type Interface interface {
@@ -714,7 +718,7 @@ func (m *MongoDB) GetCostAppList(req helper.GetCostAppListReq) (resp helper.Cost
 	if strings.ToUpper(req.AppType) != resources.AppStore {
 		match := bson.M{
 			"owner":    req.Owner,
-			"type":     accountv1.Consumption,
+			"type":     Consumption,
 			"app_type": bson.M{"$ne": resources.AppType[resources.AppStore]},
 		}
 		if req.Namespace != "" {
@@ -1737,7 +1741,7 @@ func (m *Account) ReconcileUnsettledLLMBilling(startTime, endTime time.Time) err
 			// 2. update billing status
 			filter := bson.M{
 				"user_uid": userUID,
-				"type":     accountv1.SubConsumption,
+				"type":     SubConsumption,
 				"status":   resources.Unsettled,
 				"app_type": resources.AppType[resources.LLMToken],
 				"time": bson.M{
@@ -1847,12 +1851,12 @@ func (m *Account) ArchiveHourlyBilling(hourStart, hourEnd time.Time) error {
 			"namespace": result.ID.Namespace,
 			"owner":     result.ID.Owner,
 			"time":      hourStart,
-			"type":      accountv1.Consumption,
+			"type":      Consumption,
 		}
 
 		billing := bson.M{
 			"order_id":  gonanoid.Must(12),
-			"type":      accountv1.Consumption,
+			"type":      Consumption,
 			"namespace": result.ID.Namespace,
 			"app_type":  resources.AppType[result.ID.AppType],
 			"app_name":  result.ID.AppName,
