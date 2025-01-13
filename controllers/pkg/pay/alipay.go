@@ -99,16 +99,16 @@ func doPay(body *defaultAlipayClient.DefaultAlipayClient, amount int64, user, de
 	}
 	order.OrderDescription = env.GetEnvWithDefault(envOrderDescription, fmt.Sprintf(describe+"; order for %s", user))
 	order.ReferenceOrderId = uuid.NewString()
-	order.OrderAmount = model.NewAmount(strconv.FormatInt(amount, 10), Currency)
+	order.OrderAmount = model.NewAmount(strconv.FormatInt(amount, 10), UppercaseCurrency)
 
-	request.PaymentAmount = model.NewAmount(strconv.FormatInt(amount, 10), Currency)
+	request.PaymentAmount = model.NewAmount(strconv.FormatInt(amount, 10), UppercaseCurrency)
 	request.PaymentMethod = &model.PaymentMethod{PaymentMethodType: model.ALIPAY_HK}
 	request.PaymentNotifyUrl = "https://www.yourNotifyUrl.com"
 	request.PaymentRedirectUrl = localURL + env.GetEnvWithDefault(envAliPayRedirectURL, "?openapp=system-costcenter%3FalipayState%3Dredirect")
 	request.PaymentRequestId = uuid.NewString()
 	request.ProductCode = model.CASHIER_PAYMENT
 	request.SettlementStrategy = &model.SettlementStrategy{
-		SettlementCurrency: Currency,
+		SettlementCurrency: UppercaseCurrency,
 	}
 	request.Order = order
 	request.Env = &model.Env{TerminalType: model.WEB}

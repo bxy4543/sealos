@@ -33,7 +33,10 @@ const (
 	stripeCurrency       = "STRIPE_CURRENCY"
 )
 
-var Currency string
+var (
+	Currency          string
+	UppercaseCurrency string
+)
 
 func init() {
 	if port := os.Getenv("PORT"); port != "" {
@@ -44,6 +47,7 @@ func init() {
 		currency = CNY
 	}
 	Currency = currency
+	UppercaseCurrency = strings.ToUpper(currency)
 }
 
 func (s StripePayment) CreatePayment(amount int64, _, _ string) (string, string, error) {
