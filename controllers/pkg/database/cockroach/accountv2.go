@@ -1031,6 +1031,14 @@ func (c *Cockroach) InitTables() error {
 			return fmt.Errorf("failed to add column activityType: %v", err)
 		}
 	}
+	if !c.DB.Migrator().HasColumn(&types.Payment{}, "metadata") {
+		fmt.Println("add column metadata")
+		tableName := types.Payment{}.TableName()
+		err := c.DB.Exec(`ALTER TABLE "?" ADD COLUMN "metadata" TEXT;`, gorm.Expr(tableName)).Error
+		if err != nil {
+			return fmt.Errorf("failed to add column metadata: %v", err)
+		}
+	}
 	return nil
 }
 

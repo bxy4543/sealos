@@ -15,6 +15,7 @@
 package pay
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -24,7 +25,7 @@ import (
 	"github.com/labring/sealos/controllers/pkg/utils/env"
 )
 
-var DefaultURL = fmt.Sprintf("https://%s", env.GetEnvWithDefault("DOMAIN", DefaultDomain))
+var localURL = fmt.Sprintf("https://%s", env.GetEnvWithDefault("DOMAIN", DefaultDomain))
 
 const (
 	stripeSuccessPostfix = "STRIPE_SUCCESS_POSTFIX"
@@ -36,9 +37,9 @@ var Currency string
 
 func init() {
 	if port := os.Getenv("PORT"); port != "" {
-		DefaultURL = fmt.Sprintf("%s:%s", DefaultURL, port)
+		localURL = fmt.Sprintf("%s:%s", localURL, port)
 	}
-	currency := strings.ToLower(strings.TrimSpace(os.Getenv(stripeCurrency)))
+	currency := strings.ToLower(strings.TrimSpace(os.Getenv(envPayCurrency)))
 	if currency != USD {
 		currency = CNY
 	}
@@ -46,32 +47,38 @@ func init() {
 }
 
 func (s StripePayment) CreatePayment(amount int64, _, _ string) (string, string, error) {
-	session, err := CreateCheckoutSession(amount, Currency, DefaultURL+os.Getenv(stripeSuccessPostfix), DefaultURL+os.Getenv(stripeCancelPostfix))
+	session, err := CreateCheckoutSession(amount, Currency, localURL+os.Getenv(stripeSuccessPostfix), localURL+os.Getenv(stripeCancelPostfix))
 	if err != nil {
 		return "", "", err
 	}
 	return session.ID, "", nil
 }
 
-func (s StripePayment) GetPaymentDetails(sessionID string) (string, int64, error) {
+func (s StripePayment) GetPaymentDetails(sessionID string) (status string, amount int64, metadata string, err error) {
 	ses, err := GetSession(sessionID)
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 	switch ses.Status {
 	case stripe.CheckoutSessionStatusComplete:
-		return PaymentSuccess, ses.AmountTotal, nil
+		amount = ses.AmountTotal
+		metadataRaw, err := json.Marshal(ses)
+		if err != nil {
+			return "", 0, "", fmt.Errorf("marshal metadata session failed: %s", err.Error())
+		}
+		metadata = string(metadataRaw)
+		return PaymentSuccess, amount, metadata, nil
 	case stripe.CheckoutSessionStatusExpired:
-		return PaymentExpired, 0, nil
+		return PaymentExpired, amount, metadata, nil
 	case stripe.CheckoutSessionStatusOpen:
-		return PaymentProcessing, 0, nil
+		return PaymentProcessing, amount, metadata, nil
 	default:
-		return PaymentUnknown, 0, fmt.Errorf("unknown order status: %s", ses.Status)
+		return PaymentUnknown, amount, metadata, fmt.Errorf("unknown order status: %s", ses.Status)
 	}
 }
 
 func (s StripePayment) ExpireSession(sessionID string) error {
-	status, _, _ := s.GetPaymentDetails(sessionID)
+	status, _, _, _ := s.GetPaymentDetails(sessionID)
 	if status == PaymentSuccess || status == PaymentExpired {
 		return nil
 	}
