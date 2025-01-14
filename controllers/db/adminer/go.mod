@@ -1,8 +1,6 @@
 module github.com/labring/sealos/controllers/db/adminer
 
-go 1.22
-
-toolchain go1.22.4
+go 1.22.5
 
 require (
 	github.com/jaevor/go-nanoid v1.3.0

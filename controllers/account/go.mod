@@ -1,6 +1,6 @@
 module github.com/labring/sealos/controllers/account
 
-go 1.22
+go 1.22.5
 
 replace (
 	k8s.io/api => k8s.io/api v0.28.3
@@ -29,7 +29,6 @@ require (
 	github.com/onsi/gomega v1.30.0
 	github.com/volcengine/volc-sdk-golang v1.0.159
 	go.mongodb.org/mongo-driver v1.12.1
-	golang.org/x/sync v0.6.0
 	gorm.io/gorm v1.25.5
 	k8s.io/api v0.29.0
 	k8s.io/apimachinery v0.29.0
@@ -44,6 +43,7 @@ require (
 	github.com/alibabacloud-go/openapi-util v0.1.0 // indirect
 	github.com/alibabacloud-go/tea-utils v1.3.1 // indirect
 	github.com/alibabacloud-go/tea-xml v1.1.3 // indirect
+	github.com/alipay/global-open-sdk-go v1.2.8 // indirect
 	github.com/aliyun/credentials-go v1.3.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/cenkalti/backoff/v4 v4.2.1 // indirect
@@ -129,14 +129,13 @@ require (
 	golang.org/x/exp v0.0.0-20240222234643-814bf88cf225 // indirect
 	golang.org/x/net v0.23.0 // indirect
 	golang.org/x/oauth2 v0.18.0 // indirect
+	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.18.0 // indirect
 	golang.org/x/term v0.18.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.4.0 // indirect
 	google.golang.org/appengine v1.6.8 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240125205218-1f4bbc51befe // indirect
-	google.golang.org/grpc v1.61.0 // indirect
 	google.golang.org/protobuf v1.33.0 // indirect
 	gopkg.in/alexcesaro/quotedprintable.v3 v3.0.0-20150716171945-2caba252f4dc // indirect
 	gopkg.in/gomail.v2 v2.0.0-20160411212932-81ebce5c23df // indirect
@@ -158,6 +157,7 @@ require (
 )
 
 replace (
+	github.com/apecloud/kubeblocks => github.com/apecloud/kubeblocks v0.8.4
 	github.com/labring/sealos/controllers/pkg => ../pkg
 	github.com/labring/sealos/controllers/user => ../../controllers/user
 )
