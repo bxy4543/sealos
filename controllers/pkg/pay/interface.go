@@ -26,8 +26,8 @@ func NewPayHandler(paymentMethod string) (Interface, error) {
 		return &StripePayment{}, nil
 	case "wechat":
 		return &WechatPayment{}, nil
-	//case "alipay":
-	//	return &AliPay{}, nil
+	case "alipay":
+		return &AliPay{}, nil
 	default:
 		//return nil, fmt.Errorf("unsupported payment method: %s", paymentMethod)
 		//TODO Now set it as the default wechat, and modify it a few days later

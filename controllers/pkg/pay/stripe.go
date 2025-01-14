@@ -39,7 +39,7 @@ func init() {
 	if port := os.Getenv("PORT"); port != "" {
 		localURL = fmt.Sprintf("%s:%s", localURL, port)
 	}
-	currency := strings.ToLower(strings.TrimSpace(os.Getenv("envPayCurrency")))
+	currency := strings.ToLower(strings.TrimSpace(os.Getenv(envPayCurrency)))
 	if currency != USD {
 		currency = CNY
 	}
