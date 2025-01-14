@@ -202,6 +202,7 @@ type PaymentRaw struct {
 	Remark       string       `gorm:"type:text"`
 	ActivityType ActivityType `gorm:"type:text;column:activityType"`
 	Message      string       `gorm:"type:text;not null"`
+	Metadata     string       `gorm:"type:text;colum:metadata"`
 }
 
 type ActivityType string

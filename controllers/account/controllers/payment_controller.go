@@ -200,7 +200,7 @@ func (r *PaymentReconciler) reconcilePayment(payment *accountv1.Payment) error {
 		return fmt.Errorf("get payment Interface failed: %w", err)
 	}
 	// TODO The GetPaymentDetails may cause issues when using Stripe
-	status, orderAmount, err := payHandler.GetPaymentDetails(payment.Status.TradeNO)
+	status, orderAmount, metadata, err := payHandler.GetPaymentDetails(payment.Status.TradeNO)
 	if err != nil {
 		return fmt.Errorf("get payment details failed: %w", err)
 	}
@@ -231,6 +231,7 @@ func (r *PaymentReconciler) reconcilePayment(payment *accountv1.Payment) error {
 			Method:          payment.Spec.PaymentMethod,
 			TradeNO:         payment.Status.TradeNO,
 			CodeURL:         payment.Status.CodeURL,
+			Metadata:        metadata,
 		}
 		if isFirstRecharge {
 			paymentRaw.ActivityType = pkgtypes.ActivityTypeFirstRecharge
@@ -262,7 +263,7 @@ func (r *PaymentReconciler) expiredOvertimePayment(payment *accountv1.Payment) e
 	if err != nil {
 		return fmt.Errorf("get payment Interface failed: %w", err)
 	}
-	currentStatus, _, err := payHandler.GetPaymentDetails(payment.Status.TradeNO)
+	currentStatus, _, _, err := payHandler.GetPaymentDetails(payment.Status.TradeNO)
 	if err != nil {
 		return fmt.Errorf("get payment details failed: %w", err)
 	}

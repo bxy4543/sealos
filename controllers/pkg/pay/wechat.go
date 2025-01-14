@@ -14,7 +14,10 @@
 
 package pay
 
-import "fmt"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 func (w WechatPayment) CreatePayment(amount int64, user, describe string) (string, string, error) {
 	tradeNO := GetRandomString(32)
@@ -25,22 +28,28 @@ func (w WechatPayment) CreatePayment(amount int64, user, describe string) (strin
 	return tradeNO, codeURL, nil
 }
 
-func (w WechatPayment) GetPaymentDetails(sessionID string) (string, int64, error) {
+func (w WechatPayment) GetPaymentDetails(sessionID string) (status string, amount int64, metadata string, err error) {
 	orderResp, err := QueryOrder(sessionID)
 	if err != nil {
-		return "", 0, err
+		return "", 0, "", err
 	}
 	switch *orderResp.TradeState {
 	case StatusSuccess:
-		return PaymentSuccess, *orderResp.Amount.Total, nil
+		amount = *orderResp.Amount.Total
+		metadataRaw, err := json.Marshal(orderResp)
+		if err != nil {
+			return "", 0, "", fmt.Errorf("marshal metadata session failed: %s", err.Error())
+		}
+		metadata = string(metadataRaw)
+		return PaymentSuccess, amount, metadata, nil
 	case StatusProcessing:
-		return PaymentProcessing, 0, nil
+		return PaymentProcessing, amount, metadata, nil
 	case StatusNotPay:
-		return PaymentNotPaid, 0, nil
+		return PaymentNotPaid, amount, metadata, nil
 	case StatusFail:
-		return PaymentFailed, 0, fmt.Errorf("order failed")
+		return PaymentFailed, amount, metadata, fmt.Errorf("order failed: %s", *orderResp.TradeStateDesc)
 	default:
-		return PaymentUnknown, 0, fmt.Errorf("unknown order status: %s", *orderResp.TradeState)
+		return PaymentUnknown, amount, metadata, fmt.Errorf("unknown order status: %s", *orderResp.TradeState)
 	}
 }
 
