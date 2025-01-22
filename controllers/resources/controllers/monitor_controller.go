@@ -694,12 +694,16 @@ func (r *MonitorReconciler) handlerTrafficUsed(startTime, endTime time.Time, mon
 		return nil
 	}
 	//logger.Info("traffic used ", "monitor", monitor, "used", used, "unit", unit, "bytes", bytes)
+	mType, mName := monitor.Type, monitor.Name
+	if monitor.ParentType != 0 {
+		mType, mName = monitor.ParentType, monitor.ParentName
+	}
 	ro := resources.Monitor{
 		Category: monitor.Category,
-		Name:     monitor.Name,
+		Name:     mName,
 		Used:     map[uint8]int64{r.Properties.StringMap[resources.ResourceNetwork].Enum: used},
 		Time:     endTime.Add(-1 * time.Minute),
-		Type:     monitor.Type,
+		Type:     mType,
 	}
 	err = r.DBClient.InsertMonitor(context.Background(), &ro)
 	if err != nil {

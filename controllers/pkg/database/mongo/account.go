@@ -350,16 +350,20 @@ func (m *mongoDB) GetDistinctMonitorCombinations(startTime, endTime time.Time) (
 		}}},
 		{{Key: "$group", Value: bson.M{
 			"_id": bson.M{
-				"category": "$category",
-				"name":     "$name",
-				"type":     "$type",
+				"category":    "$category",
+				"name":        "$name",
+				"type":        "$type",
+				"parent_type": "$parent_type",
+				"parent_name": "$parent_name",
 			},
 		}}},
 		{{Key: "$project", Value: bson.M{
-			"_id":      0,
-			"category": "$_id.category",
-			"name":     "$_id.name",
-			"type":     "$_id.type",
+			"_id":         0,
+			"category":    "$_id.category",
+			"name":        "$_id.name",
+			"type":        "$_id.type",
+			"parent_type": "$_id.parent_type",
+			"parent_name": "$_id.parent_name",
 		}}},
 	}
 	cursor, err := m.getMonitorCollection(startTime).Aggregate(context.Background(), pipeline)
