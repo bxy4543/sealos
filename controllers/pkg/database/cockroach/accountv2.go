@@ -537,12 +537,26 @@ func (g *Cockroach) GetPayment(ops *types.UserQueryOpts, startTime, endTime time
 	return payment, nil
 }
 
-func (g *Cockroach) getNotInvitedPaymentWithUIDList(userList []string) ([]types.Payment, error) {
-	var payment []types.Payment
-	if err := g.DB.Where(`"userUid" IN ?`, userList).Where("remark <> ?", types.Invited).Find(&payment).Error; err != nil {
-		return nil, fmt.Errorf("failed to get payment: %w", err)
+func (g *Cockroach) getNotInvitedPaymentWithUIDList(userIDs []string) ([]types.Payment, error) {
+	if len(userIDs) == 0 {
+		return []types.Payment{}, nil
 	}
-	return payment, nil
+	var userUIDs []uuid.UUID
+	if err := g.DB.Model(&types.User{}).
+		Where("id IN ?", userIDs).
+		Pluck("uid", &userUIDs).Error; err != nil {
+		return nil, fmt.Errorf("failed to get user UIDs: %w", err)
+	}
+	if len(userUIDs) == 0 {
+		return []types.Payment{}, nil
+	}
+	var payments []types.Payment
+	if err := g.DB.Where(`"userUid" IN ?`, userUIDs).
+		Where("remark <> ?", types.Invited).
+		Find(&payments).Error; err != nil {
+		return nil, fmt.Errorf("failed to get payments: %w", err)
+	}
+	return payments, nil
 }
 
 func (g *Cockroach) SetPaymentInvoice(ops *types.UserQueryOpts, paymentIDList []string) error {
