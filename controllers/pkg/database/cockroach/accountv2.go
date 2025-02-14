@@ -286,33 +286,58 @@ func (g *Cockroach) GetInviteReward(userID string) ([]types.InviteReward, error)
 }
 
 func (g *Cockroach) InviteRewardHandler(userID string, userList []string, ratio float64) (int64, error) {
+	if len(userList) == 0 {
+		return 0, nil
+	}
 	inviteUserUID, err := g.GetUserUID(&types.UserQueryOpts{ID: userID})
 	if err != nil {
 		return 0, fmt.Errorf("failed to get user uid: %v", err)
 	}
 	allAmount := int64(0)
-	for i := range userList {
-		payments, err := g.getNotInvitedPayment(&types.UserQueryOpts{ID: userList[i]})
-		if err != nil {
-			return 0, fmt.Errorf("failed to get payment: %v", err)
-		}
-		for i := range payments {
-			rewardAmount := int64(math.Ceil(float64(payments[i].Amount) * ratio))
-			allAmount += rewardAmount
-			payments[i].Remark = types.Invited
-			if err := g.DB.Save(&payments[i]).Error; err != nil {
-				return 0, fmt.Errorf("failed to save payment: %v", err)
+
+	payments, err := g.getNotInvitedPaymentWithUIDList(userList)
+	if err != nil {
+		return 0, fmt.Errorf("failed to get payment: %v", err)
+	}
+	if len(payments) == 0 {
+		return 0, nil
+	}
+	inviteRewards := make([]types.InviteReward, 0, len(payments))
+	inviteRewardPayments := make([]string, 0, len(payments))
+
+	for i := range payments {
+		rewardAmount := int64(math.Round(float64(payments[i].Amount) * ratio))
+		allAmount += rewardAmount
+		payments[i].Remark = types.Invited
+		inviteRewards = append(inviteRewards, types.InviteReward{
+			PaymentID:     payments[i].ID,
+			UserUID:       payments[i].UserUID,
+			InviteFrom:    inviteUserUID,
+			PaymentAmount: payments[i].Amount,
+			RewardAmount:  rewardAmount,
+		})
+		inviteRewardPayments = append(inviteRewardPayments, payments[i].ID)
+	}
+
+	err = g.DB.Transaction(func(tx *gorm.DB) error {
+		// update payment remark == reward
+		if len(inviteRewardPayments) > 0 {
+			if err := tx.Model(&types.Payment{}).Where("id IN ?", inviteRewardPayments).Updates(map[string]interface{}{"remark": types.Invited}).Error; err != nil {
+				return fmt.Errorf("failed to update payment: %v", err)
 			}
-			if err := g.DB.Save(&types.InviteReward{
-				PaymentID:     payments[i].ID,
-				UserUID:       payments[i].UserUID,
-				InviteFrom:    inviteUserUID,
-				PaymentAmount: payments[i].Amount,
-				RewardAmount:  rewardAmount,
-			}).Error; err != nil {
-				return 0, fmt.Errorf("failed to save invite reward: %v", err)
+		}
+		if len(inviteRewards) > 0 {
+			if err := tx.Save(&inviteRewards).Error; err != nil {
+				return fmt.Errorf("failed to save invite reward: %v", err)
 			}
 		}
+		return nil
+	})
+	if err != nil {
+		return 0, fmt.Errorf("failed to transaction: %v", err)
+	}
+	if allAmount == 0 {
+		return 0, nil
 	}
 	err = g.AddBalance(&types.UserQueryOpts{UID: inviteUserUID}, allAmount)
 	if err != nil {
@@ -512,13 +537,9 @@ func (g *Cockroach) GetPayment(ops *types.UserQueryOpts, startTime, endTime time
 	return payment, nil
 }
 
-func (g *Cockroach) getNotInvitedPayment(ops *types.UserQueryOpts) ([]types.Payment, error) {
-	userUID, err := g.GetUserUID(ops)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get user uid: %v", err)
-	}
+func (g *Cockroach) getNotInvitedPaymentWithUIDList(userList []string) ([]types.Payment, error) {
 	var payment []types.Payment
-	if err := g.DB.Where(types.Payment{PaymentRaw: types.PaymentRaw{UserUID: userUID}}).Where("remark <> ?", types.Invited).Find(&payment).Error; err != nil {
+	if err := g.DB.Where(`"userUid" IN ?`, userList).Where("remark <> ?", types.Invited).Find(&payment).Error; err != nil {
 		return nil, fmt.Errorf("failed to get payment: %w", err)
 	}
 	return payment, nil

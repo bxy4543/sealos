@@ -47,3 +47,20 @@ func TestCockroach_GetUserOauthProvider(t *testing.T) {
 	}
 	t.Logf("provider: %+v", provider)
 }
+
+func TestCockroach_InviteRewardHandler(t *testing.T) {
+	os.Setenv("LOCAL_REGION", "")
+	ck, err := NewCockRoach("", "")
+	if err != nil {
+		t.Errorf("NewCockRoach() error = %v", err)
+		return
+	}
+	defer ck.Close()
+
+	amount, err := ck.InviteRewardHandler("eWpJlOG_90", []string{"c2e33790-bbfd-417c-9e00-3389725a738f", "da888a48-470f-49f2-8fc0-6f47cb5048c1", "da888a48-470f-49f2-8fc0-6f47cb5048c1"}, 0.1)
+	if err != nil {
+		t.Errorf("InviteRewardHandler2() error = %v", err)
+		return
+	}
+	t.Logf("amount: %v", amount)
+}
