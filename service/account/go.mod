@@ -11,15 +11,12 @@ replace (
 require (
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-gonic/gin v1.9.1
-	github.com/google/uuid v1.3.0
-	github.com/labring/sealos/controllers/pkg v0.0.0-00010101000000-000000000000
+	github.com/labring/sealos/controllers/pkg v0.0.0-20240319070311-0755c905e0ba
 	github.com/labring/sealos/service v0.0.0-00010101000000-000000000000
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.2
 	go.mongodb.org/mongo-driver v1.13.0
-	gorm.io/driver/postgres v1.5.4
-	gorm.io/gorm v1.25.5
 )
 
 require (
@@ -27,7 +24,6 @@ require (
 	github.com/bytedance/sonic v1.9.1 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20221115062448-fe3a3abad311 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/dinoallo/sealos-networkmanager-protoapi v0.0.0-20230928031328-cf9649d6af49 // indirect
 	github.com/emicklei/go-restful/v3 v3.10.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.2 // indirect
@@ -47,6 +43,7 @@ require (
 	github.com/google/gnostic-models v0.6.8 // indirect
 	github.com/google/go-cmp v0.5.9 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
+	github.com/google/uuid v1.3.0 // indirect
 	github.com/imdario/mergo v0.3.16 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
 	github.com/jackc/pgservicefile v0.0.0-20221227161230-091c0ba34f0a // indirect
@@ -59,6 +56,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.2.5 // indirect
 	github.com/leodido/go-urn v1.2.4 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
+	github.com/matoous/go-nanoid/v2 v2.0.0 // indirect
 	github.com/mattn/go-isatty v0.0.19 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
 	github.com/modern-go/reflect2 v1.0.2 // indirect
@@ -86,13 +84,13 @@ require (
 	golang.org/x/time v0.3.0 // indirect
 	golang.org/x/tools v0.16.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
-	google.golang.org/grpc v1.57.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gorm.io/driver/postgres v1.5.4 // indirect
+	gorm.io/gorm v1.25.5 // indirect
 	k8s.io/api v0.28.4 // indirect
 	k8s.io/apimachinery v0.28.4 // indirect
 	k8s.io/client-go v0.28.4 // indirect

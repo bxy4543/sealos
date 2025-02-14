@@ -18,7 +18,6 @@ replace (
 
 require (
 	github.com/containers/storage v1.50.2
-	github.com/dinoallo/sealos-networkmanager-protoapi v0.0.0-20230928031328-cf9649d6af49
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-logr/logr v1.2.4
@@ -125,8 +124,6 @@ require (
 	golang.org/x/text v0.13.0 // indirect
 	gomodules.xyz/jsonpatch/v2 v2.3.0 // indirect
 	google.golang.org/appengine v1.6.7 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230525234030-28d5490b6b19 // indirect
-	google.golang.org/grpc v1.57.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
 	gopkg.in/inf.v0 v0.9.1 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
