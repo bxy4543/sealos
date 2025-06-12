@@ -72,6 +72,12 @@ const (
 	OSInternalEndpointEnv = "OSInternalEndpoint"
 	OSNamespace           = "OSNamespace"
 	OSAdminSecret         = "OSAdminSecret"
+
+	NetworkStatusAnnoKey    = "network.sealos.io/status"
+	NetworkSuspend          = "Suspend"
+	NetworkSuspendCompleted = "SuspendCompleted"
+	NetworkResume           = "Resume"
+	NetworkResumeCompleted  = "ResumeCompleted"
 )
 
 //+kubebuilder:rbac:groups=core,resources=namespaces,verbs=get;list;watch;create;update;patch;delete
@@ -99,70 +105,222 @@ func (r *NamespaceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (
 		return ctrl.Result{}, nil
 	}
 
-	debtStatus, ok := ns.Annotations[v1.DebtNamespaceAnnoStatusKey]
-	if !ok {
-		logger.Error(fmt.Errorf("no debt status"), "no debt status")
-		return ctrl.Result{}, nil
-	}
-	logger.V(1).Info("debt status", "status", debtStatus)
-	// Skip if namespace is in any completed state
-	if debtStatus == v1.SuspendCompletedDebtNamespaceAnnoStatus ||
-		debtStatus == v1.FinalDeletionCompletedDebtNamespaceAnnoStatus ||
-		debtStatus == v1.ResumeCompletedDebtNamespaceAnnoStatus ||
-		debtStatus == v1.TerminateSuspendCompletedDebtNamespaceAnnoStatus {
-		logger.V(1).Info("Skipping completed namespace")
+	debtStatus, debtExists := ns.Annotations[v1.DebtNamespaceAnnoStatusKey]
+	networkStatus, networkExists := ns.Annotations[v1.NetworkStatusAnnoKey]
+	if !debtExists && !networkExists {
+		logger.V(1).Info("No debt or network status annotations found")
 		return ctrl.Result{}, nil
 	}
 
-	switch debtStatus {
-	case v1.SuspendDebtNamespaceAnnoStatus, v1.TerminateSuspendDebtNamespaceAnnoStatus:
-		if err := r.SuspendUserResource(ctx, req.NamespacedName.Name); err != nil {
-			logger.Error(err, "suspend namespace resources failed")
-			return ctrl.Result{}, err
+	if ns.Annotations == nil {
+		ns.Annotations = make(map[string]string)
+	}
+
+	debtCompletedStates := map[string]bool{
+		v1.SuspendCompletedDebtNamespaceAnnoStatus:          true,
+		v1.FinalDeletionCompletedDebtNamespaceAnnoStatus:    true,
+		v1.ResumeCompletedDebtNamespaceAnnoStatus:           true,
+		v1.TerminateSuspendCompletedDebtNamespaceAnnoStatus: true,
+	}
+	networkCompletedStates := map[string]bool{
+		v1.NetworkSuspendCompleted: true,
+		v1.NetworkResumeCompleted:  true,
+	}
+	deleteConst := "delete"
+
+	// auxiliary function update annotations
+	updateAnnotations := func(debtStatus, networkStatus string) (ctrl.Result, error) {
+		if debtStatus != "" {
+			ns.Annotations[v1.DebtNamespaceAnnoStatusKey] = debtStatus
 		}
-		// Update to corresponding completed state
-		newStatus := v1.SuspendCompletedDebtNamespaceAnnoStatus
-		if debtStatus == v1.TerminateSuspendDebtNamespaceAnnoStatus {
-			newStatus = v1.TerminateSuspendCompletedDebtNamespaceAnnoStatus
+		if networkStatus != "" {
+			ns.Annotations[v1.NetworkStatusAnnoKey] = networkStatus
 		}
-		ns.Annotations[v1.DebtNamespaceAnnoStatusKey] = newStatus
 		if err := r.Client.Update(ctx, &ns); err != nil {
-			logger.Error(err, "update namespace status to completed failed")
+			logger.Error(err, "failed to update namespace annotations")
 			return ctrl.Result{}, err
 		}
-	case v1.FinalDeletionDebtNamespaceAnnoStatus:
-		if err := r.DeleteUserResource(ctx, req.NamespacedName.Name); err != nil {
-			logger.Error(err, "delete namespace resources failed")
-			return ctrl.Result{
-				Requeue:      true,
-				RequeueAfter: 10 * time.Minute,
-			}, err
+		return ctrl.Result{}, nil
+	}
+
+	// auxiliary function handles resource operations
+	performAction := func(action func(context.Context, string) error, actionName string) (ctrl.Result, error) {
+		if err := action(ctx, req.NamespacedName.Name); err != nil {
+			logger.Error(err, fmt.Sprintf("%s namespace resources failed", actionName))
+			return ctrl.Result{Requeue: actionName == deleteConst, RequeueAfter: 10 * time.Minute}, err
 		}
-		ns.Annotations[v1.DebtNamespaceAnnoStatusKey] = v1.FinalDeletionCompletedDebtNamespaceAnnoStatus
-		if err := r.Client.Update(ctx, &ns); err != nil {
-			logger.Error(err, "update namespace status to FinalDeletionCompleted failed")
-			return ctrl.Result{}, err
-		}
-	case v1.ResumeDebtNamespaceAnnoStatus:
-		if err := r.ResumeUserResource(ctx, req.NamespacedName.Name); err != nil {
-			logger.Error(err, "resume namespace resources failed")
-			return ctrl.Result{}, err
-		}
-		ns.Annotations[v1.DebtNamespaceAnnoStatusKey] = v1.ResumeCompletedDebtNamespaceAnnoStatus
-		if err := r.Client.Update(ctx, &ns); err != nil {
-			logger.Error(err, "update namespace status to ResumeCompleted failed")
-			return ctrl.Result{}, err
-		}
-	case v1.NormalDebtNamespaceAnnoStatus:
-		// No action needed for Normal state
-	default:
-		logger.Error(fmt.Errorf("unknown namespace debt status, change to normal"), "", "debt status", ns.Annotations[v1.DebtNamespaceAnnoStatusKey])
-		ns.Annotations[v1.DebtNamespaceAnnoStatusKey] = v1.NormalDebtNamespaceAnnoStatus
-		if err := r.Client.Update(ctx, &ns); err != nil {
-			logger.Error(err, "update namespace status failed")
-			return ctrl.Result{}, err
+		return ctrl.Result{}, nil
+	}
+
+	// state transition table
+	type stateTransition struct {
+		condition  func() bool
+		newDebt    string
+		newNetwork string
+		action     func(context.Context, string) error
+		actionName string
+	}
+
+	transitions := []stateTransition{
+		// Case 1: only the debt status
+		{
+			condition: func() bool { return debtExists && !networkExists && !debtCompletedStates[debtStatus] },
+			newDebt: func() string {
+				switch debtStatus {
+				case v1.SuspendDebtNamespaceAnnoStatus:
+					return v1.SuspendCompletedDebtNamespaceAnnoStatus
+				case v1.TerminateSuspendDebtNamespaceAnnoStatus:
+					return v1.TerminateSuspendCompletedDebtNamespaceAnnoStatus
+				case v1.ResumeDebtNamespaceAnnoStatus:
+					return v1.ResumeCompletedDebtNamespaceAnnoStatus
+				case v1.FinalDeletionDebtNamespaceAnnoStatus:
+					return v1.FinalDeletionCompletedDebtNamespaceAnnoStatus
+				default:
+					return v1.NormalDebtNamespaceAnnoStatus
+				}
+			}(),
+			newNetwork: "",
+			action: func(ctx context.Context, name string) error {
+				switch debtStatus {
+				case v1.SuspendDebtNamespaceAnnoStatus, v1.TerminateSuspendDebtNamespaceAnnoStatus:
+					return r.SuspendUserResource(ctx, name)
+				case v1.ResumeDebtNamespaceAnnoStatus:
+					return r.ResumeUserResource(ctx, name)
+				case v1.FinalDeletionDebtNamespaceAnnoStatus:
+					return r.DeleteUserResource(ctx, name)
+				default:
+					return nil
+				}
+			},
+			actionName: func() string {
+				switch debtStatus {
+				case v1.FinalDeletionDebtNamespaceAnnoStatus:
+					return deleteConst
+				default:
+					return "suspend/resume"
+				}
+			}(),
+		},
+		// Case 2: only in the network state
+		{
+			condition: func() bool { return !debtExists && networkExists && !networkCompletedStates[networkStatus] },
+			newDebt:   "",
+			newNetwork: func() string {
+				switch networkStatus {
+				case v1.NetworkSuspend:
+					return v1.NetworkSuspendCompleted
+				case v1.NetworkResume:
+					return v1.NetworkResumeCompleted
+				default:
+					return ""
+				}
+			}(),
+			action: func(ctx context.Context, name string) error {
+				switch networkStatus {
+				case v1.NetworkSuspend:
+					return r.SuspendUserResource(ctx, name)
+				case v1.NetworkResume:
+					return r.ResumeUserResource(ctx, name)
+				default:
+					return nil
+				}
+			},
+			actionName: "suspend/resume",
+		},
+		// Case 3: both the debt and network states exist
+		{
+			condition: func() bool {
+				return debtExists && networkExists && !debtCompletedStates[debtStatus] && !networkCompletedStates[networkStatus]
+			},
+			newDebt: func() string {
+				switch debtStatus {
+				case v1.NormalDebtNamespaceAnnoStatus, v1.SuspendDebtNamespaceAnnoStatus, v1.TerminateSuspendDebtNamespaceAnnoStatus:
+					return debtStatus
+				case v1.ResumeDebtNamespaceAnnoStatus:
+					return v1.ResumeCompletedDebtNamespaceAnnoStatus
+				case v1.FinalDeletionDebtNamespaceAnnoStatus:
+					return v1.FinalDeletionCompletedDebtNamespaceAnnoStatus
+				default:
+					return v1.NormalDebtNamespaceAnnoStatus
+				}
+			}(),
+			newNetwork: func() string {
+				switch networkStatus {
+				case v1.NetworkSuspend:
+					return v1.NetworkSuspendCompleted
+				case v1.NetworkResume:
+					return v1.NetworkResumeCompleted
+				default:
+					return networkStatus
+				}
+			}(),
+			action: func(ctx context.Context, name string) error {
+				if debtStatus == v1.FinalDeletionDebtNamespaceAnnoStatus {
+					return r.DeleteUserResource(ctx, name)
+				}
+				if networkStatus == v1.NetworkSuspend || debtStatus == v1.SuspendDebtNamespaceAnnoStatus || debtStatus == v1.TerminateSuspendDebtNamespaceAnnoStatus {
+					return r.SuspendUserResource(ctx, name)
+				}
+				if networkStatus == v1.NetworkResume || debtStatus == v1.ResumeDebtNamespaceAnnoStatus {
+					return r.ResumeUserResource(ctx, name)
+				}
+				return nil
+			},
+			actionName: func() string {
+				if debtStatus == v1.FinalDeletionDebtNamespaceAnnoStatus {
+					return deleteConst
+				}
+				return "suspend/resume"
+			}(),
+		},
+		// Case 4: debt completion status handling network
+		{
+			condition: func() bool {
+				return debtExists && networkExists && debtCompletedStates[debtStatus] && !networkCompletedStates[networkStatus]
+			},
+			newDebt: debtStatus,
+			newNetwork: func() string {
+				switch networkStatus {
+				case v1.NetworkSuspend:
+					return v1.NetworkSuspendCompleted
+				case v1.NetworkResume:
+					return v1.NetworkResumeCompleted
+				default:
+					return networkStatus
+				}
+			}(),
+			action: func(ctx context.Context, name string) error {
+				switch networkStatus {
+				case v1.NetworkSuspend:
+					return r.SuspendUserResource(ctx, name)
+				case v1.NetworkResume:
+					return r.ResumeUserResource(ctx, name)
+				default:
+					return nil
+				}
+			},
+			actionName: "suspend/resume",
+		},
+	}
+
+	// perform state transition
+	for _, t := range transitions {
+		if t.condition() {
+			if t.action != nil {
+				if result, err := performAction(t.action, t.actionName); err != nil {
+					return result, err
+				}
+			}
+			if t.newDebt != "" || t.newNetwork != "" {
+				logger.Info("update namespace anno : debt status '%s', network status '%s'", t.newDebt, t.newNetwork)
+				return updateAnnotations(t.newDebt, t.newNetwork)
+			}
+			return ctrl.Result{}, nil
 		}
 	}
+
+	// Default: The status is completed or does not require processing
+	logger.V(1).Info("No action required", "debtStatus", debtStatus, "networkStatus", networkStatus)
 	return ctrl.Result{}, nil
 }
 
@@ -544,21 +702,36 @@ func (AnnotationChangedPredicate) Update(e event.UpdateEvent) bool {
 	if !ok1 || !ok2 || newObj.Annotations == nil {
 		return false
 	}
-	oldStatus := oldObj.Annotations[v1.DebtNamespaceAnnoStatusKey]
-	newStatus := newObj.Annotations[v1.DebtNamespaceAnnoStatusKey]
-	return oldStatus != newStatus && newStatus != v1.SuspendCompletedDebtNamespaceAnnoStatus &&
-		newStatus != v1.FinalDeletionCompletedDebtNamespaceAnnoStatus &&
-		newStatus != v1.ResumeCompletedDebtNamespaceAnnoStatus &&
-		newStatus != v1.TerminateSuspendCompletedDebtNamespaceAnnoStatus
+
+	oldDebtStatus := oldObj.Annotations[v1.DebtNamespaceAnnoStatusKey]
+	newDebtStatus := newObj.Annotations[v1.DebtNamespaceAnnoStatusKey]
+	oldNetworkStatus := oldObj.Annotations[v1.NetworkStatusAnnoKey]
+	newNetworkStatus := newObj.Annotations[v1.NetworkStatusAnnoKey]
+
+	debtChanged := oldDebtStatus != newDebtStatus && !isDebtCompleted(newDebtStatus)
+	networkChanged := oldNetworkStatus != newNetworkStatus && !isNetworkCompleted(newNetworkStatus)
+
+	return debtChanged || networkChanged
 }
 
 func (AnnotationChangedPredicate) Create(e event.CreateEvent) bool {
-	status, ok := e.Object.GetAnnotations()[v1.DebtNamespaceAnnoStatusKey]
-	return ok && status != v1.NormalDebtNamespaceAnnoStatus &&
-		status != v1.SuspendCompletedDebtNamespaceAnnoStatus &&
-		status != v1.FinalDeletionCompletedDebtNamespaceAnnoStatus &&
-		status != v1.ResumeCompletedDebtNamespaceAnnoStatus &&
-		status != v1.TerminateSuspendCompletedDebtNamespaceAnnoStatus
+	annotations := e.Object.GetAnnotations()
+	debtStatus, debtExists := annotations[v1.DebtNamespaceAnnoStatusKey]
+	networkStatus, networkExists := annotations[v1.NetworkStatusAnnoKey]
+
+	return (debtExists && !isDebtCompleted(debtStatus)) || (networkExists && !isNetworkCompleted(networkStatus))
+}
+
+// Helper functions to check completed states
+func isDebtCompleted(status string) bool {
+	return status == v1.SuspendCompletedDebtNamespaceAnnoStatus ||
+		status == v1.FinalDeletionCompletedDebtNamespaceAnnoStatus ||
+		status == v1.ResumeCompletedDebtNamespaceAnnoStatus ||
+		status == v1.TerminateSuspendCompletedDebtNamespaceAnnoStatus
+}
+
+func isNetworkCompleted(status string) bool {
+	return status == v1.NetworkSuspendCompleted || status == v1.NetworkResumeCompleted
 }
 
 func (r *NamespaceReconciler) suspendCronJob(ctx context.Context, namespace string) error {
