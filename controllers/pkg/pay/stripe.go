@@ -58,9 +58,13 @@ func (s StripePayment) GetPaymentDetails(sessionID string) (string, int64, error
 	if err != nil {
 		return "", 0, err
 	}
+	amount := ses.AmountTotal
+	if ses.AllowPromotionCodes && ses.AmountSubtotal > 0 {
+		amount = ses.AmountSubtotal
+	}
 	switch ses.Status {
 	case stripe.CheckoutSessionStatusComplete:
-		return PaymentSuccess, ses.AmountTotal, nil
+		return PaymentSuccess, amount, nil
 	case stripe.CheckoutSessionStatusExpired:
 		return PaymentExpired, 0, nil
 	case stripe.CheckoutSessionStatusOpen:
