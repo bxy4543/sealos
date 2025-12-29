@@ -45,6 +45,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
+	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	//+kubebuilder:scaffold:imports
 )
 
@@ -85,6 +86,9 @@ func main() {
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "a63686c3.sealos.io",
+		WebhookServer: webhook.NewServer(webhook.Options{
+			Port: 9443,
+		}),
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -167,6 +171,9 @@ func main() {
 		os.Exit(1)
 	}
 	reconciler.Properties = resources.DefaultPropertyTypeLS
+
+	// Register property reload handler
+	mgr.GetWebhookServer().Register("/reload-property-types", &controllers.PropertyReloadHandler{DBClient: reconciler.DBClient})
 	const (
 		MinioEndpoint          = "MINIO_ENDPOINT"
 		MinioAk                = "MINIO_AK"

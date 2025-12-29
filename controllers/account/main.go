@@ -278,6 +278,8 @@ func main() {
 		setupLog.Info("disable all webhooks")
 	} else {
 		mgr.GetWebhookServer().Register("/validate-v1-sealos-cloud", &webhook.Admission{Handler: &accountv1.DebtValidate{Client: mgr.GetClient(), AccountV2: v2Account, TTLUserMap: maps.New[*types.UsableBalanceWithCredits](env.GetIntEnvWithDefault("DEBT_WEBHOOK_CACHE_USER_TTL", 15))}})
+		// Register property reload handler
+		mgr.GetWebhookServer().Register("/reload-property-types", &controllers.PropertyReloadHandler{DBClient: dbClient})
 	}
 
 	err = dbClient.InitDefaultPropertyTypeLS()
