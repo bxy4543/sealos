@@ -16,10 +16,13 @@ package controllers
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
+	"strings"
 
 	"github.com/labring/sealos/controllers/pkg/database"
 	"github.com/labring/sealos/controllers/pkg/resources"
+	"github.com/labring/sealos/controllers/pkg/utils"
 	ctrl "sigs.k8s.io/controller-runtime"
 )
 
@@ -27,7 +30,9 @@ var reloadLogger = ctrl.Log.WithName("property-reload-handler")
 
 // PropertyReloadHandler is an HTTP handler to reload property types from database
 type PropertyReloadHandler struct {
-	DBClient database.Interface
+	DBClient          database.Interface
+	AccountReconciler *AccountReconciler
+	JwtSecret         string
 }
 
 func (h *PropertyReloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -36,11 +41,24 @@ func (h *PropertyReloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	reloadLogger.Info("received request to reload property types")
+	// Authenticate admin request
+	if err := authenticateAdminRequest(r, h.JwtSecret); err != nil {
+		reloadLogger.Error(err, "admin authentication failed")
+		http.Error(w, "Unauthorized: "+err.Error(), http.StatusUnauthorized)
+		return
+	}
+
+	reloadLogger.Info("received request to reload property types from authenticated admin")
 
 	// Reload property types from database
 	if err := h.DBClient.ReloadPropertyTypeLS(); err != nil {
 		reloadLogger.Error(err, "failed to reload property types")
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	var err error
+	if _, err = h.AccountReconciler.AccountV2.ReloadAccountConfig(); err != nil {
+		reloadLogger.Error(err, "failed to reload account config")
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -62,4 +80,35 @@ func (h *PropertyReloadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request
 	if err := json.NewEncoder(w).Encode(response); err != nil {
 		reloadLogger.Error(err, "failed to encode response")
 	}
+}
+
+// authenticateAdminRequest validates that the request is from an admin user
+func authenticateAdminRequest(r *http.Request, jwtSecret string) error {
+	tokenString := r.Header.Get("Authorization")
+	if tokenString == "" {
+		return errors.New("authorization header is required")
+	}
+
+	// Remove "Bearer " prefix if present
+	token := strings.TrimPrefix(tokenString, "Bearer ")
+	if token == "" || token == tokenString {
+		return errors.New("invalid authorization token format")
+	}
+
+	// Create JWT manager and verify token
+	jwtMgr := utils.NewJWTManager(jwtSecret, 0)
+	user, err := jwtMgr.ParseUser(token)
+	if err != nil {
+		return err
+	}
+
+	if user == nil {
+		return errors.New("user not found in token")
+	}
+
+	if user.Requester != AdminUserName {
+		return errors.New("user is not admin")
+	}
+
+	return nil
 }
