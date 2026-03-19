@@ -14,14 +14,10 @@ data:
       certSecretName: "{{ .Values.desktopConfig.certSecretName }}"
       proxyDomain: "{{ .Values.desktopConfig.proxyDomain | default .Values.desktopConfig.cloudDomain }}"
       allowedOrigins:
-{{- if .Values.desktopConfig.allowedAllOrigins }}
-        - "*"
-{{- else }}
 {{- $defaultAllowedOrigins := list "costcenter" "license" -}}
 {{- $allowedOrigins := .Values.desktopConfig.allowedOrigins | default $defaultAllowedOrigins -}}
 {{- range $origin := $allowedOrigins }}
         - "https://{{ $origin }}.{{ $.Values.desktopConfig.cloudDomain }}"
-{{- end }}
 {{- end }}
 
     common:
@@ -90,7 +86,6 @@ data:
           emailAlertEnabled: false
           phoneAlertEnabled: false
           announcementEnabled: false
-          kcRotationEnabled: {{ .Values.desktopConfig.kcRotationEnabled }}
       auth:
         callbackURL: "https://{{ .Values.desktopConfig.cloudDomain }}{{ if .Values.desktopConfig.cloudPort }}:{{ .Values.desktopConfig.cloudPort }}{{ end }}/callback"
         signUpEnabled: {{ .Values.desktopConfig.signUpEnabled }}
