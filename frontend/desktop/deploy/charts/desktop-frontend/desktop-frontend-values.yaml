@@ -22,19 +22,13 @@ resources:
 
 # Desktop frontend configuration (user-customizable)
 desktopConfig:
-  # Additional allowedOrigins subdomains
-  # Only provide the subdomain part, system will add https:// and .{cloudDomain}
-  # Example: ["myapp", "analytics"] will generate:
-  # - "https://myapp.{cloudDomain}"
-  # - "https://analytics.{cloudDomain}"
-  allowedOrigins:
-    - "costcenter"
-    - "license"
+  proxyDomain: ""
   kcRotationEnabled: false
 
   # Billing configuration
   billingUrl: "http://account-service.account-system.svc:2333"
   billingToken: ""
+  cloudVitrualMachineUrl: ""
 
   # Currency and language configuration
   # Options: "cn" (Chinese) or "en" (English)
@@ -68,6 +62,13 @@ desktopConfig:
   layoutBackgroundImage: "/images/bg-light.svg"
   customerServiceURL: ""
   layoutDocsUrl: "https://sealos.run/docs/Intro/"
+  layoutGithubStarEnabled: true
+  layoutWorkorderEnabled: false
+  layoutAccountSettingEnabled: true
+  layoutAiAssistantEnabled: false
+  layoutBannerEnabled: false
+  layoutAnnouncementEnabled: false
+  layoutDocsUseDocs: false
 
   authTitle:
     zh: "欢迎来到 Sealos"
@@ -87,6 +88,17 @@ desktopConfig:
   metaDescription: "Sealos Cloud"
   metaKeywords: "Sealos Cloud"
 
+  signUpEnabled: true
+  baiduToken: ""
+  bingAdTenant: ""
+  bingAdClientId: ""
+  bingAdClientSecret: ""
+  bingAdRefreshToken: ""
+  bingAdDeveloperToken: ""
+  bingAdCustomerId: 0
+  bingAdCustomerAccountId: 0
+  bingAdConversionName: ""
+
   passwordEnabled: true
   # OAuth providers
   githubEnabled: false
@@ -105,6 +117,7 @@ desktopConfig:
   googleProxyAddress: ""
 
   oauth2Enabled: false
+  oauth2Pkce: false
   oauth2CallbackUrl: ""
   oauth2ClientId: ""
   oauth2ClientSecret: ""
@@ -112,6 +125,7 @@ desktopConfig:
   oauth2TokenUrl: ""
   oauth2UserInfoUrl: ""
   oauth2ProxyAddress: ""
+  oauth2DisplayName: ""
 
   # Captcha configuration
   turnstileEnabled: false
@@ -143,10 +157,13 @@ desktopConfig:
   aliCaptchaAccessKeyID: ""
   aliCaptchaAccessKeySecret: ""
 
+  inviteEnabled: false
+  inviteLafSecretKey: ""
+  inviteLafBaseURL: ""
+
   # Tracking configuration
   trackingWebsiteId: ""
   trackingHostUrl: ""
-  trackingScriptUrl: ""
 
   # RealName OSS configuration
   realNameOSSAccessKey: ""

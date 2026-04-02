@@ -14,10 +14,14 @@ data:
       certSecretName: "{{ .Values.desktopConfig.certSecretName }}"
       proxyDomain: "{{ .Values.desktopConfig.proxyDomain | default .Values.desktopConfig.cloudDomain }}"
       allowedOrigins:
+{{- if .Values.desktopConfig.allowedAllOrigins }}
+        - "*"
+{{- else }}
 {{- $defaultAllowedOrigins := list "costcenter" "license" -}}
 {{- $allowedOrigins := .Values.desktopConfig.allowedOrigins | default $defaultAllowedOrigins -}}
 {{- range $origin := $allowedOrigins }}
         - "https://{{ $origin }}.{{ $.Values.desktopConfig.cloudDomain }}"
+{{- end }}
 {{- end }}
 
     common:
@@ -177,7 +181,6 @@ data:
     tracking:
       websiteId: "{{ .Values.desktopConfig.trackingWebsiteId }}"
       hostUrl: {{ if .Values.desktopConfig.trackingHostUrl }}"{{ .Values.desktopConfig.trackingHostUrl }}"{{ else if .Values.desktopConfig.trackingEnabled }}"https://umami.sealos.run"{{ else }}""{{ end }}
-
     realNameOSS:
       accessKey: "{{ .Values.desktopConfig.realNameOSSAccessKey }}"
       accessKeySecret: "{{ .Values.desktopConfig.realNameOSSAccessKeySecret }}"
