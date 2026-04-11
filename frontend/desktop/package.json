@@ -19,7 +19,7 @@
     "gen:postgresql": "pnpm gen:global:postgresql && pnpm gen:region:postgresql",
     "migrate:deploy:global:postgresql": "prisma migrate deploy --schema ./prisma/providers/postgresql/global/schema.prisma",
     "migrate:deploy:region:postgresql": "prisma migrate deploy --schema ./prisma/providers/postgresql/region/schema.prisma",
-    "postinstall": "pnpm gen:global && pnpm gen:region"
+    "postinstall": "pnpm gen:global:postgresql && pnpm gen:region:postgresql"
   },
   "dependencies": {
     "@alicloud/captcha20230305": "1.1.3",

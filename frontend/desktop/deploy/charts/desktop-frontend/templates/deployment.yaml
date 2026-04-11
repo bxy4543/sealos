@@ -43,6 +43,9 @@ spec:
       initContainers:
         - name: init-database
           image: "{{ .Values.image }}"
+          env:
+            - name: PRISMA_DB_PROVIDER
+              value: "{{ .Values.databaseType }}"
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -58,6 +61,9 @@ spec:
         - name: {{ include "desktop.name" . }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
+          env:
+            - name: PRISMA_DB_PROVIDER
+              value: "{{ .Values.databaseType }}"
           command: ["/bin/sh", "-c"]
           args:
             - |

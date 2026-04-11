@@ -51,16 +51,27 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 ARG name
 ARG path
+ARG PRISMA_DB_PROVIDER=postgresql
+ENV PRISMA_DB_PROVIDER=$PRISMA_DB_PROVIDER
 
 COPY ${path} ${path}
 
-RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm --frozen-lockfile --filter=$name install && pnpm --filter=$name run build
+RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm --frozen-lockfile --filter=$name install && \
+    if [ "$name" = "desktop" ] && [ "$PRISMA_DB_PROVIDER" = "postgresql" ]; then \
+        pnpm --filter=$name run gen:global:postgresql && \
+        pnpm --filter=$name run gen:region:postgresql; \
+    fi && \
+    pnpm --filter=$name run build
 
 RUN if [ "$name" = "desktop" ]; then \
     mkdir -p desktop/.next/standalone/desktop/prisma/global && \
     mkdir -p desktop/.next/standalone/desktop/prisma/region && \
     cp -r ./desktop/prisma/global/migrations desktop/.next/standalone/desktop/prisma/global/migrations; \
     cp -r ./desktop/prisma/region/migrations desktop/.next/standalone/desktop/prisma/region/migrations; \
+    if [ -d "./desktop/prisma/providers" ]; then \
+        mkdir -p desktop/.next/standalone/desktop/prisma/providers && \
+        cp -r ./desktop/prisma/providers/* desktop/.next/standalone/desktop/prisma/providers/; \
+    fi; \
 fi
 RUN if [ "$name" = "devbox" ]; then \
     if [ -d "./providers/devbox/prisma/migrations" ]; then \

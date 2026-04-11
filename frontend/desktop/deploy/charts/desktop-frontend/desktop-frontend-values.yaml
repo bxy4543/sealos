@@ -14,7 +14,7 @@ replicaCount: 1
 
 # Prisma database backend used by the init container migrations.
 # Supported values: cockroachdb, postgresql
-# databaseType: cockroachdb
+# databaseType: postgresql
 
 resources:
   limits:
