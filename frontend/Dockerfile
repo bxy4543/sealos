@@ -51,16 +51,10 @@ ENV NEXT_TELEMETRY_DISABLED=1
 
 ARG name
 ARG path
-ARG PRISMA_DB_PROVIDER=postgresql
-ENV PRISMA_DB_PROVIDER=$PRISMA_DB_PROVIDER
 
 COPY ${path} ${path}
 
 RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm --frozen-lockfile --filter=$name install && \
-    if [ "$name" = "desktop" ] && [ "$PRISMA_DB_PROVIDER" = "postgresql" ]; then \
-        pnpm --filter=$name run gen:global:postgresql && \
-        pnpm --filter=$name run gen:region:postgresql; \
-    fi && \
     pnpm --filter=$name run build
 
 RUN if [ "$name" = "desktop" ]; then \

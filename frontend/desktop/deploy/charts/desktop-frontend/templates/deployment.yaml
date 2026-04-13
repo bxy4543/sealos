@@ -45,7 +45,7 @@ spec:
           image: "{{ .Values.image }}"
           env:
             - name: PRISMA_DB_PROVIDER
-              value: "{{ .Values.databaseType }}"
+              value: "{{ .Values.global.featureConfigs.database.type }}"
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -63,7 +63,7 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           env:
             - name: PRISMA_DB_PROVIDER
-              value: "{{ .Values.databaseType }}"
+              value: "{{ .Values.global.featureConfigs.database.type }}"
           command: ["/bin/sh", "-c"]
           args:
             - |
