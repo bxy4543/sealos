@@ -1,3 +1,9 @@
+{{- $desktopConfig := .Values.desktopConfig | default dict -}}
+{{- $authTitle := get $desktopConfig "authTitle" | default dict -}}
+{{- $authBackgroundImage := get $desktopConfig "authBackgroundImage" | default dict -}}
+{{- $protocol := get $desktopConfig "protocol" | default dict -}}
+{{- $serviceProtocol := get $protocol "serviceProtocol" | default dict -}}
+{{- $privateProtocol := get $protocol "privateProtocol" | default dict -}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -55,18 +61,18 @@ data:
         gtmId: {{ if .Values.desktopConfig.gtmId }}"{{ .Values.desktopConfig.gtmId }}"{{ else }}null{{ end }}
         currencySymbol: {{ if eq .Values.desktopConfig.version "cn" }}"shellCoin"{{ else }}"usd"{{ end }}
         authTitle:
-          zh: "{{.Values.desktopConfig.authTitle.zh}}"
-          en: "{{.Values.desktopConfig.authTitle.en}}"
+          zh: {{ get $authTitle "zh" | default "欢迎来到 Sealos" | quote }}
+          en: {{ get $authTitle "en" | default "Welcome to Sealos" | quote }}
         authBackgroundImage:
-          zh: "{{.Values.desktopConfig.authBackgroundImage.zh}}"
-          en: "{{.Values.desktopConfig.authBackgroundImage.en}}"
+          zh: {{ get $authBackgroundImage "zh" | default "/images/bg-light.svg" | quote }}
+          en: {{ get $authBackgroundImage "en" | default "/images/bg-light.svg" | quote }}
         protocol:
           serviceProtocol:
-            zh: "{{.Values.desktopConfig.protocol.serviceProtocol.zh}}"
-            en: "{{.Values.desktopConfig.protocol.serviceProtocol.en}}"
+            zh: {{ get $serviceProtocol "zh" | default "https://sealos.io/zh-Hans/docs/msa/terms-of-service" | quote }}
+            en: {{ get $serviceProtocol "en" | default "https://sealos.io/docs/msa/terms-of-service" | quote }}
           privateProtocol:
-            zh: "{{.Values.desktopConfig.protocol.privateProtocol.zh}}"
-            en: "{{.Values.desktopConfig.protocol.privateProtocol.en}}"
+            zh: {{ get $privateProtocol "zh" | default "https://sealos.io/zh-Hans/docs/msa/privacy-policy" | quote }}
+            en: {{ get $privateProtocol "en" | default "https://sealos.io/docs/msa/privacy-policy" | quote }}
         meta:
           title: "{{ .Values.desktopConfig.metaTitle }}"
           description: "{{ .Values.desktopConfig.metaDescription }}"
