@@ -322,8 +322,21 @@ func (n *LicenseNotifier) refreshUserCount(ctx context.Context) error {
 	if err := n.List(ctx, list); err != nil {
 		return err
 	}
-	usercount.Set(len(list.Items))
+	usercount.Set(countQuotaUsers(list))
 	return nil
+}
+
+func countQuotaUsers(list *metav1.PartialObjectMetadataList) int {
+	if list == nil {
+		return 0
+	}
+	count := 0
+	for i := range list.Items {
+		if list.Items[i].DeletionTimestamp == nil || list.Items[i].DeletionTimestamp.IsZero() {
+			count++
+		}
+	}
+	return count
 }
 
 // sendOrUpdateNotification creates or updates a notification, reusing the same notification resource

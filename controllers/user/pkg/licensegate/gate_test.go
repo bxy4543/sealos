@@ -17,6 +17,7 @@ package licensegate
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -63,7 +64,7 @@ func newTestLicense(
 	}
 	return &licensev1.License{
 		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-license",
+			Name: fmt.Sprintf("test-license-%d", userCount),
 		},
 		Spec: licensev1.LicenseSpec{
 			Token: signed,

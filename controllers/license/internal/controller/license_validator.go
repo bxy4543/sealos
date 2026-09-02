@@ -67,10 +67,10 @@ func (v *LicenseValidator) Validate(ctx context.Context, license *licensev1.Lice
 	}
 	v.Logger.Info(
 		"Validating license",
+		"license",
+		client.ObjectKeyFromObject(license),
 		"cluster info",
 		clusterInfo,
-		"license token",
-		license.Spec.Token,
 	)
 	return licenseutil.IsLicenseValid(license, clusterInfo, v.ClusterID)
 }

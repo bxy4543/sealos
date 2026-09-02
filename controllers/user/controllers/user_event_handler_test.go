@@ -20,9 +20,11 @@ import (
 	"time"
 
 	userv1 "github.com/labring/sealos/controllers/user/api/v1"
+	"github.com/labring/sealos/controllers/user/controllers/helper/config"
 	"github.com/labring/sealos/controllers/user/pkg/licensegate"
 	"github.com/labring/sealos/controllers/user/pkg/usercount"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -225,5 +227,70 @@ func TestLicenseLimitedUserRemainsNewAcrossRestart(t *testing.T) {
 	}
 	if !blocked {
 		t.Fatal("license-limited User was allowed before capacity became available")
+	}
+}
+
+func TestUserReconcileBlocksDirectCreateWithoutWebhook(t *testing.T) {
+	scheme := reconcileTestScheme(t)
+	existing := &userv1.User{ObjectMeta: metav1.ObjectMeta{Name: "existing-user"}}
+	candidate := &userv1.User{ObjectMeta: metav1.ObjectMeta{Name: "direct-user"}}
+	cli := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithStatusSubresource(&userv1.User{}).
+		WithObjects(existing, candidate).
+		Build()
+
+	counter := usercount.NewCounter()
+	counter.Add(existing)
+	counter.Add(candidate)
+	counter.MarkInitialized()
+	licensegate.SetState(false, licensegate.DefaultUserLimit)
+	t.Cleanup(func() {
+		licensegate.SetState(false, licensegate.DefaultUserLimit)
+	})
+
+	reconciler := &UserReconciler{
+		Client:             cli,
+		Recorder:           record.NewFakeRecorder(4),
+		userCounter:        counter,
+		minRequeueDuration: time.Minute,
+	}
+
+	user := &userv1.User{}
+	if err := cli.Get(context.Background(), client.ObjectKey{Name: candidate.Name}, user); err != nil {
+		t.Fatalf("get candidate User: %v", err)
+	}
+	result, err := reconciler.reconcile(context.Background(), user)
+	if err != nil {
+		t.Fatalf("reconcile direct User create: %v", err)
+	}
+	if result.RequeueAfter != time.Minute {
+		t.Fatalf("requeue duration = %v, want %v", result.RequeueAfter, time.Minute)
+	}
+
+	stored := &userv1.User{}
+	if err := cli.Get(context.Background(), client.ObjectKey{Name: candidate.Name}, stored); err != nil {
+		t.Fatalf("get persisted User status: %v", err)
+	}
+	if stored.Status.Phase != userv1.UserPending {
+		t.Fatalf("phase = %q, want %q", stored.Status.Phase, userv1.UserPending)
+	}
+	if !(&UserReconciler{}).isNewUser(stored) {
+		t.Fatal("license-limited User stopped being classified as new")
+	}
+	if err := cli.Get(
+		context.Background(),
+		client.ObjectKey{Name: config.GetUsersNamespace(candidate.Name)},
+		&corev1.Namespace{},
+	); !apierrors.IsNotFound(err) {
+		t.Fatalf("user namespace lookup error = %v, want not found", err)
+	}
+
+	user = stored
+	if _, err := reconciler.reconcile(context.Background(), user); err != nil {
+		t.Fatalf("reconcile persisted limited User: %v", err)
+	}
+	if !(&UserReconciler{}).isNewUser(user) {
+		t.Fatal("persisted license-limited User was allowed on retry")
 	}
 }

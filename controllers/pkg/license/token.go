@@ -17,6 +17,7 @@ package license
 import (
 	"encoding/base64"
 	"errors"
+	"fmt"
 
 	"github.com/golang-jwt/jwt/v4"
 	licensev1 "github.com/labring/sealos/controllers/license/api/v1"
@@ -24,9 +25,20 @@ import (
 )
 
 func ParseToken(tokenString string) (*jwt.Token, error) {
+	return parseToken(tokenString, GetEncryptionKey())
+}
+
+func parseToken(tokenString, encodedKey string) (*jwt.Token, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{},
-		func(_ *jwt.Token) (any, error) {
-			decodeKey, err := base64.StdEncoding.DecodeString(GetEncryptionKey())
+		func(token *jwt.Token) (any, error) {
+			if token.Method == nil || token.Method.Alg() != jwt.SigningMethodRS256.Alg() {
+				algorithm := "<nil>"
+				if token.Method != nil {
+					algorithm = token.Method.Alg()
+				}
+				return nil, fmt.Errorf("unsupported license signing algorithm %q", algorithm)
+			}
+			decodeKey, err := base64.StdEncoding.DecodeString(encodedKey)
 			if err != nil {
 				return nil, err
 			}
